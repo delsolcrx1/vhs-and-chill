@@ -9,6 +9,7 @@ A web-based retro environment simulator. Load your own background, place a virtu
   - **File Playback**: Upload local video files (MP4, WebM).
   - **YouTube**: Paste URLs to play videos or playlists.
   - **Channels**: Create custom curated channels JSON playlists.
+  - **Gaming Mode**: Play NES and Sega Genesis/Mega Drive games via EmulatorJS emulation.
 - **Chroma Key / Manual Placement**: Place the TV content onto a green screen area in your background, or manually draw the position.
 - **Audio Mixer**: Mix 4 tracks of ambient noise (Birds, Traffic, Lawnmower, Talking) + TV Volume. Supports custom MP3 uploads for each track.
 - **Visual Effects**: 
@@ -37,7 +38,8 @@ A web-based retro environment simulator. Load your own background, place a virtu
 ## Controls
 
 ### Remote Control (Right Panel)
-- **Tabs**: Switch between `FILE`, `URL` (YouTube), and `CHANNELS`.
+- **Tabs**: Switch between `FILE`, `URL` (YouTube), `CHANNELS`, and `GAMES`.
+  - **GAMES**: Select system (NES/Mega Drive), upload ROM file, and load game.
 - **Playback**: Play/Pause, Next/Prev (YouTube), Eject.
 - **Power**: Toggles the TV screen visibility.
 - **Volume**: Controls TV volume independent of ambient noise.

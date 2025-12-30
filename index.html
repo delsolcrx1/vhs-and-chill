@@ -7,6 +7,7 @@
     <title>Retro Room Simulator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.emulatorjs.org/stable/data/css/emu.css" rel="stylesheet">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
 
@@ -268,6 +269,7 @@
     </style>
     <!-- Load YouTube API -->
     <script src="https://www.youtube.com/iframe_api"></script>
+    <!-- EmulatorJS will be loaded dynamically when a game is selected -->
 </head>
 
 <body class="h-screen w-screen flex relative">
@@ -564,6 +566,8 @@
                 class="flex-1 text-[10px] font-bold py-1 bg-gray-800 hover:bg-gray-700 text-gray-400">URL</button>
             <button id="tab-channels"
                 class="flex-1 text-[10px] font-bold py-1 bg-gray-800 hover:bg-gray-700 text-gray-400">CHANNELS</button>
+            <button id="tab-games"
+                class="flex-1 text-[10px] font-bold py-1 bg-gray-800 hover:bg-gray-700 text-gray-400">GAMES</button>
         </div>
 
         <!-- TV Source Controls (Moved & Refactored) -->
@@ -595,6 +599,41 @@
             <div id="panel-channels" class="hidden">
                 <div id="channels-list" class="flex flex-col gap-2 max-h-96 overflow-y-auto pr-1">
                     <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <!-- GAMES TAB -->
+            <div id="panel-games" class="hidden">
+                <div class="mb-3">
+                    <label class="block text-gray-400 text-xs mb-2">SELECT SYSTEM</label>
+                    <select id="game-system"
+                        class="w-full bg-gray-900 border border-gray-700 text-xs p-2 text-white focus:outline-none focus:border-green-500 rounded">
+                        <option value="">-- Choose System --</option>
+                        <option value="nes">Nintendo Entertainment System (NES)</option>
+                        <option value="segaMD">Sega Genesis / Mega Drive</option>
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <input type="file" id="rom-upload" accept=".nes,.smd,.md,.gen,.bin" class="hidden" />
+                    <label for="rom-upload"
+                        class="cursor-pointer block w-full py-2 bg-purple-900 hover:bg-purple-800 text-white text-xs font-bold rounded border border-purple-700 text-center"
+                        id="rom-upload-label">
+                        <i class="fas fa-gamepad mr-2"></i> SELECT ROM FILE
+                    </label>
+                </div>
+                <div class="text-[10px] text-gray-500 text-center mb-2" id="rom-filename">No ROM loaded</div>
+                <button id="game-load-btn"
+                    class="w-full bg-green-900 text-white text-xs px-3 py-2 hover:bg-green-700 border border-green-800 rounded font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled>
+                    <i class="fas fa-play mr-2"></i>LOAD GAME
+                </button>
+                <div class="mt-3 text-[9px] text-gray-600 leading-relaxed">
+                    <div class="mb-1"><strong class="text-gray-500">Controls:</strong></div>
+                    <div>Arrow Keys = D-Pad</div>
+                    <div>Z = A/Button 1</div>
+                    <div>X = B/Button 2</div>
+                    <div>Enter = Start</div>
+                    <div>Shift = Select</div>
                 </div>
             </div>
         </div>
@@ -695,6 +734,12 @@
                         <div id="yt-player" class="w-full h-full"></div>
                     </div>
 
+                    <!-- Emulator Container -->
+                    <div id="emulator-container" class="absolute inset-0 w-full h-full z-10 hidden"
+                        style="pointer-events: auto;">
+                        <div id="game" class="w-full h-full" style="pointer-events: auto;"></div>
+                    </div>
+
                     <!-- TV CRT Overlay -->
                     <div id="crt-overlay-tv"
                         class="absolute inset-0 z-20 crt-overlay opacity-0 pointer-events-none hidden"></div>
@@ -733,8 +778,11 @@
             isPlaying: false,
             audioContext: null,
             method: 'chroma', // 'chroma' or 'manual'
-            tvSource: 'file', // 'file' or 'youtube'
+            tvSource: 'file', // 'file', 'youtube', or 'game'
             ytPlayer: null,
+            emulator: null, // EmulatorJS instance
+            gameFile: null, // Current ROM file
+            gameSystem: '', // Selected system (nes, segaMD)
             chroma: {
                 threshold: 90,
                 softness: 20
@@ -780,6 +828,7 @@
         const aspectContainer = document.getElementById('aspect-container');
         const selectionBox = document.getElementById('selection-box');
         const ytContainer = document.getElementById('yt-player-container');
+        const emulatorContainer = document.getElementById('emulator-container');
 
         // --- Layout & resizing ---
         function setRatio(ratio) {
@@ -1043,7 +1092,7 @@
         });
 
         // --- Tab Switching Logic ---
-        const tabs = ['file', 'url', 'channels'];
+        const tabs = ['file', 'url', 'channels', 'games'];
         tabs.forEach(t => {
             document.getElementById(`tab-${t}`).addEventListener('click', () => {
                 // Update visual tabs
@@ -1068,16 +1117,36 @@
                     state.tvSource = 'file';
                     tvVideo.classList.remove('hidden');
                     ytContainer.classList.add('hidden');
+                    emulatorContainer.classList.add('hidden');
                     if (tvVideo.src) {
                         tvVideo.play().catch(() => { });
                     }
+                    if (state.ytPlayer && state.ytPlayer.pauseVideo) state.ytPlayer.pauseVideo();
+                    if (state.emulator) {
+                        // Pause emulator if possible
+                        try {
+                            if (state.emulator.pause) state.emulator.pause();
+                        } catch (e) { }
+                    }
+                } else if (t === 'games') {
+                    state.tvSource = 'game';
+                    tvVideo.classList.add('hidden');
+                    ytContainer.classList.add('hidden');
+                    emulatorContainer.classList.remove('hidden');
+                    if (tvVideo.paused === false) tvVideo.pause();
                     if (state.ytPlayer && state.ytPlayer.pauseVideo) state.ytPlayer.pauseVideo();
                 } else {
                     // Both URL and Channels use YouTube source type
                     state.tvSource = 'youtube';
                     tvVideo.classList.add('hidden');
                     ytContainer.classList.remove('hidden');
+                    emulatorContainer.classList.add('hidden');
                     if (tvVideo.paused === false) tvVideo.pause();
+                    if (state.emulator) {
+                        try {
+                            if (state.emulator.pause) state.emulator.pause();
+                        } catch (e) { }
+                    }
                 }
             });
         });
@@ -1131,6 +1200,136 @@
 
         // Init Channels
         fetchChannels();
+
+        // --- Games/Emulator Logic ---
+        const gameSystemSelect = document.getElementById('game-system');
+        const romUploadInput = document.getElementById('rom-upload');
+        const romFilenameDisplay = document.getElementById('rom-filename');
+        const gameLoadBtn = document.getElementById('game-load-btn');
+
+        // Handle system selection
+        gameSystemSelect.addEventListener('change', (e) => {
+            state.gameSystem = e.target.value;
+            updateGameLoadButton();
+        });
+
+        // Handle ROM file upload
+        romUploadInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                state.gameFile = file;
+                romFilenameDisplay.textContent = file.name;
+                romFilenameDisplay.classList.remove('text-gray-500');
+                romFilenameDisplay.classList.add('text-green-400');
+                updateGameLoadButton();
+            } else {
+                state.gameFile = null;
+                romFilenameDisplay.textContent = "No ROM loaded";
+                romFilenameDisplay.classList.remove('text-green-400');
+                romFilenameDisplay.classList.add('text-gray-500');
+                updateGameLoadButton();
+            }
+        });
+
+        function updateGameLoadButton() {
+            if (state.gameSystem && state.gameFile) {
+                gameLoadBtn.disabled = false;
+            } else {
+                gameLoadBtn.disabled = true;
+            }
+        }
+
+        // Load game into emulator
+        gameLoadBtn.addEventListener('click', () => {
+            if (!state.gameSystem || !state.gameFile) {
+                console.error('Need both system and ROM file to load game');
+                return;
+            }
+
+            loadGame(state.gameSystem, state.gameFile);
+        });
+
+        function loadGame(system, romFile) {
+            // Clear any existing emulator
+            if (state.emulator && state.emulator.loaded) {
+                try {
+                    const gameDiv = document.getElementById('game');
+                    gameDiv.innerHTML = '';
+                } catch (e) {
+                    console.error('Error clearing emulator:', e);
+                }
+            }
+
+            // Create a URL for the ROM file
+            const romUrl = URL.createObjectURL(romFile);
+
+            console.log('Loading game:', { system, fileName: romFile.name, romUrl });
+
+            // Clear the game container
+            const gameDiv = document.getElementById('game');
+            gameDiv.innerHTML = '';
+
+            // Show the emulator container and hide static
+            emulatorContainer.classList.remove('hidden');
+            staticCanvas.style.opacity = '0';
+
+            // Set global variables for EmulatorJS BEFORE loading the script
+            window.EJS_player = '#game';
+            window.EJS_core = system;
+            window.EJS_gameUrl = romUrl;
+            window.EJS_pathtodata = 'https://cdn.emulatorjs.org/stable/data/';
+            window.EJS_startOnLoaded = true; // Auto-start when loaded
+            window.EJS_volume = 1.0; // Set volume to 100%
+            window.EJS_gameName = romFile.name; // Set game name
+
+            console.log('EmulatorJS config set:', {
+                player: window.EJS_player,
+                core: window.EJS_core,
+                gameUrl: window.EJS_gameUrl
+            });
+
+            // Remove any existing loader script
+            const oldScript = document.querySelector('script[src*="emulatorjs"][src*="loader"]');
+            if (oldScript) {
+                console.log('Removing old EmulatorJS script');
+                oldScript.remove();
+            }
+
+            // Load the EmulatorJS loader script
+            const script = document.createElement('script');
+            script.src = 'https://cdn.emulatorjs.org/stable/data/loader.js';
+
+            script.onload = () => {
+                console.log('EmulatorJS loader script loaded successfully');
+                state.emulator = {
+                    system,
+                    romFile,
+                    romUrl,
+                    loaded: true
+                };
+            };
+
+            script.onerror = (error) => {
+                console.error('Failed to load EmulatorJS script:', error);
+                alert('Failed to load the emulator. Please check your internet connection and try again.');
+                // Show static again on error
+                staticCanvas.style.opacity = '1';
+                emulatorContainer.classList.add('hidden');
+            };
+
+            document.head.appendChild(script);
+
+            // Watch for when emulator content is added and auto-focus/click it
+            setTimeout(() => {
+                const gameCanvas = document.querySelector('#game canvas');
+                if (gameCanvas) {
+                    gameCanvas.setAttribute('tabindex', '0');
+                    gameCanvas.focus();
+                    gameCanvas.click();
+                    console.log('Auto-focused and clicked emulator for input/audio');
+                }
+            }, 3000);
+        }
 
         window.addEventListener('mousemove', (e) => {
             if (!isSelecting) return;
@@ -1315,6 +1514,29 @@
                 tvVideo.removeAttribute('src');
                 tvVideo.classList.add('hidden');
                 document.getElementById('tv-upload').value = "";
+            } else if (state.tvSource === 'game') {
+                // Clear emulator
+                if (state.emulator) {
+                    try {
+                        const gameDiv = document.getElementById('game');
+                        gameDiv.innerHTML = '';
+                        if (state.emulator.romUrl) {
+                            URL.revokeObjectURL(state.emulator.romUrl);
+                        }
+                    } catch (e) {
+                        console.error('Error clearing emulator:', e);
+                    }
+                    state.emulator = null;
+                }
+                emulatorContainer.classList.add('hidden');
+                state.gameFile = null;
+                state.gameSystem = '';
+                document.getElementById('rom-upload').value = "";
+                document.getElementById('game-system').value = "";
+                romFilenameDisplay.textContent = "No ROM loaded";
+                romFilenameDisplay.classList.remove('text-green-400');
+                romFilenameDisplay.classList.add('text-gray-500');
+                updateGameLoadButton();
             } else {
                 if (state.ytPlayer && state.ytPlayer.stopVideo) state.ytPlayer.stopVideo();
                 ytContainer.classList.add('hidden');
@@ -1423,6 +1645,9 @@
             let showStatic = false;
             if (state.tvSource === 'file') {
                 if (tvVideo.paused || tvVideo.classList.contains('hidden') || !tvVideo.src) showStatic = true;
+            } else if (state.tvSource === 'game') {
+                // Show static if no emulator is loaded
+                if (!state.emulator || emulatorContainer.classList.contains('hidden')) showStatic = true;
             } else {
                 // For YouTube, checking playback state is async, so we mostly rely on visibility
                 if (ytContainer.classList.contains('hidden')) showStatic = true;
