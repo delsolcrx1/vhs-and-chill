@@ -404,6 +404,26 @@
         </div>
 
 
+        <!-- Advertising Settings -->
+        <div class="mb-6">
+            <h2 class="text-lg text-green-400 mb-2 border-b border-gray-800 pb-1">SIMULATION (ADS)</h2>
+            <div class="flex justify-between items-center bg-gray-900 p-2 rounded border border-gray-800">
+                <span class="text-sm text-gray-300">Ads per Break</span>
+                <div class="flex items-center gap-2">
+                    <button id="btn-ads-toggle"
+                        class="toggle-btn w-3 h-3 rounded-full border border-gray-600 bg-gray-800 mr-1"
+                        title="Enable/Disable Ads via Config"></button>
+                    <input type="number" id="ads-count" min="0" max="10" value="2"
+                        class="bg-gray-800 border border-gray-700 text-white text-xs w-12 p-1 text-center rounded focus:outline-none focus:border-green-500">
+                </div>
+            </div>
+            <div class="flex justify-between items-center text-[10px] text-gray-500 mt-1 px-1">
+                <span>Configured Playlists: <span id="ads-playlist-count">0</span></span>
+                <button onclick="if(confirm('Clear all ad play counts?')) resetAdCounts()"
+                    class="text-xs text-red-500 hover:text-red-400 hover:underline">Reset Counts</button>
+            </div>
+        </div>
+
         <!-- Visual Effects -->
         <div class="mb-6">
             <h2 class="text-lg text-green-400 mb-2 border-b border-gray-800 pb-1">VISUAL EFFECTS</h2>
@@ -840,7 +860,33 @@
                 crt: { enabled: true, intensity: 0.3, scope: 'screen' },
                 tv: { brightness: 1, contrast: 1, saturation: 1, hue: 0, blur: 0, sepia: 0 }
             },
-            lockedManual: false
+            lockedManual: false,
+            ads: {
+                // Config
+                config: null,
+                enabled: true, // Master toggle
+                adsPerBreak: 2, // How many ads to play
+
+                // Runtime State
+                isPlayingAd: false,
+                playCountInBreak: 0,
+
+                // Resume State (for returning to main content)
+                resumeState: {
+                    type: null, // 'playlist' or 'video'
+                    url: null,
+                    listId: null,
+                    videoId: null,
+                    index: 0,
+                    time: 0
+                },
+
+                // Persistent Tracking (videoId -> count)
+                videoPlayCounts: {},
+
+                // Runtime queue of ad videos to play
+                adQueue: []
+            }
         };
 
         let currentRoomFile = null; // Stored for upload logic
@@ -972,7 +1018,39 @@
 
         document.getElementById('remote-next').addEventListener('click', () => {
             if (!isTvPowerOn) return;
-            if (state.tvSource === 'youtube' && state.ytPlayer?.nextVideo) state.ytPlayer.nextVideo();
+
+            if (state.tvSource === 'youtube') {
+                // 1. If Ad is playing, skip it (user wants to skip ad)
+                if (state.ads && state.ads.isPlayingAd) {
+                    console.log("Skipping Ad via Remote");
+                    handleAdFinished();
+                    return;
+                }
+
+                // 2. If valid normal content, try to trigger ad break
+                if (state.ads && state.ads.enabled && state.ads.adsPerBreak > 0 && state.ads.config) {
+                    const activeLists = state.ads.config.lists.filter(l => l.enabled);
+                    const player = state.ytPlayer;
+                    // Only trigger if in a playlist
+                    const listId = player && typeof player.getPlaylistId === 'function' ? player.getPlaylistId() : null;
+
+                    if (activeLists.length > 0 && listId) {
+                        console.log("Triggering Ad Break via Remote Next");
+                        const idx = player.getPlaylistIndex();
+                        state.ads.resumeState = {
+                            type: 'playlist',
+                            listId: listId,
+                            index: idx + 1,
+                            time: 0
+                        };
+                        startAdBreak();
+                        return;
+                    }
+                }
+
+                // 3. Fallback to normal behavior
+                if (state.ytPlayer?.nextVideo) state.ytPlayer.nextVideo();
+            }
         });
 
         document.getElementById('remote-prev').addEventListener('click', () => {
@@ -1419,6 +1497,9 @@
         }
 
         function loadYoutube(url, startSeconds = 0, startListIndex = 0) {
+            // Reset Ad State on any manual load so we don't carry over ad modes/loops
+            if (typeof cancelAdBreak === 'function') cancelAdBreak();
+
             let videoId = null;
             let listId = null;
             try {
@@ -1460,7 +1541,9 @@
                             event.target.setVolume(parseFloat(document.getElementById('vol-tv').value) * 100);
                             if (listId) event.target.loadPlaylist({ list: listId, listType: 'playlist', index: startListIndex, startSeconds: startSeconds });
                             else if (startSeconds > 0) event.target.seekTo(startSeconds, true);
-                        }
+                        },
+                        'onStateChange': onPlayerStateChange,
+                        'onError': onPlayerError
                     }
                 });
             } else {
@@ -2262,9 +2345,434 @@
             });
         }
 
+        // --- Ad Management System ---
+        function fetchAdConfig() {
+            fetch('/ads/config.json')
+                .then(res => res.json())
+                .then(config => {
+                    console.log("Ad Config Loaded:", config);
+                    state.ads.config = config;
+                    updateAdUI();
+
+                    // Restore play counts from LocalStorage if available
+                    const savedCounts = localStorage.getItem('vhs_ad_counts');
+                    if (savedCounts) {
+                        try {
+                            state.ads.videoPlayCounts = JSON.parse(savedCounts);
+                        } catch (e) { }
+                    }
+                })
+                .catch(err => console.error("Failed to load ad config", err));
+        }
+
+        function updateAdUI() {
+            const countInput = document.getElementById('ads-count');
+            const playlistCountSpan = document.getElementById('ads-playlist-count');
+            const toggleBtn = document.getElementById('btn-ads-toggle');
+
+            if (state.ads.config) {
+                const enabledCount = state.ads.config.lists.filter(l => l.enabled).length;
+                playlistCountSpan.innerText = enabledCount;
+                if (enabledCount > 0 && state.ads.enabled) {
+                    toggleBtn.classList.add('active');
+                    toggleBtn.style.backgroundColor = '#00ff00';
+                } else {
+                    toggleBtn.classList.remove('active');
+                    toggleBtn.style.backgroundColor = '';
+                }
+            }
+
+            countInput.value = state.ads.adsPerBreak;
+
+            // Re-bind listener to avoid duplicates if called multiple times (simple check)
+            if (!countInput.dataset.bound) {
+                countInput.dataset.bound = true;
+                countInput.addEventListener('change', (e) => {
+                    state.ads.adsPerBreak = parseInt(e.target.value) || 0;
+                });
+            }
+            if (!toggleBtn.dataset.bound) {
+                toggleBtn.dataset.bound = true;
+                toggleBtn.addEventListener('click', (e) => {
+                    state.ads.enabled = !state.ads.enabled;
+                    updateAdUI();
+                });
+            }
+        }
+
+        function saveAdCounts() {
+            localStorage.setItem('vhs_ad_counts', JSON.stringify(state.ads.videoPlayCounts));
+        }
+
+        function resetAdCounts() {
+            state.ads.videoPlayCounts = {};
+            localStorage.removeItem('vhs_ad_counts');
+            console.log("🔄 Ad counts reset");
+        }
+
+        // Core Ad Logic
+        let currentAdVideoId = null;
+        let adBreakStartTime = null;
+        let adFailsafeTimeout = null;
+        const AD_BREAK_TIMEOUT_MS = 120000;
+
+        function cancelAdBreak() {
+            console.log("🚫 Cancelling active Ad Break state.");
+            state.ads.isPlayingAd = false;
+            state.ads.seekingAd = false;
+            state.ads.playCountInBreak = 0;
+            state.ads.resumeState = null;
+
+            if (adFailsafeTimeout) {
+                clearTimeout(adFailsafeTimeout);
+                adFailsafeTimeout = null;
+            }
+            adBreakStartTime = null;
+        }
+
+        function onPlayerStateChange(event) {
+            // Ad Optimization Logic (Best Index Selection)
+            // Trigger on CUED (-5, often skipped), BUFFERING (3), or UNSTARTED (-1)
+            // AND check PLAYING (1) as specific fallback if others missed
+            if (state.ads.seekingAd) {
+                const triggerStates = [YT.PlayerState.CUED, YT.PlayerState.BUFFERING, YT.PlayerState.UNSTARTED, YT.PlayerState.PLAYING];
+                if (triggerStates.includes(event.data)) {
+                    // Playlist active?
+                    const player = state.ytPlayer;
+                    const playlist = player.getPlaylist();
+
+                    // Only proceed if we have a populated playlist to choose from
+                    if (playlist && playlist.length > 0) {
+
+                        // Find least played
+                        let bestIndex = 0;
+                        let minPlays = Infinity;
+
+                        playlist.forEach((vid, idx) => {
+                            const count = state.ads.videoPlayCounts[vid] || 0;
+                            if (count < minPlays) {
+                                minPlays = count;
+                                bestIndex = idx;
+                            }
+                        });
+
+                        console.log(`🎯 Selected ad index ${bestIndex} with ${minPlays} plays`);
+
+                        // CRITICAL FIX: Capture the intended Video ID *now*, while we have the playlist.
+                        // This ensures that if it errors before playing, we still know which ID failed.
+                        if (playlist[bestIndex]) {
+                            currentAdVideoId = playlist[bestIndex];
+                        }
+
+                        state.ads.seekingAd = false;
+
+                        if (player.getPlaylistIndex() !== bestIndex) {
+                            player.playVideoAt(bestIndex);
+                        }
+                    }
+                }
+            }
+
+            // Capture Playing Ad ID
+            if (event.data === YT.PlayerState.PLAYING && state.ads.isPlayingAd) {
+                if (state.ytPlayer && state.ytPlayer.getVideoData) {
+                    const data = state.ytPlayer.getVideoData();
+                    if (data && data.video_id) {
+                        currentAdVideoId = data.video_id;
+                    }
+                }
+            }
+
+            // YT.PlayerState.ENDED = 0
+            if (event.data === YT.PlayerState.ENDED) {
+                console.log("Video Ended. State:", state.ads);
+
+                if (state.ads.isPlayingAd) {
+                    // Ad just finished
+                    handleAdFinished();
+                } else {
+                    // Content just finished
+
+                    // SAFETY CHECK: Prevent Infinite Ad Loops
+                    // If the video that just ended belongs to one of our Ad Playlists, 
+                    // and we are NOT in 'isPlayingAd' mode, it means the player 
+                    // failed to switch back to content. Resurrecting 'finishAdBreak' would be wise,
+                    // or just aborting.
+                    const player = state.ytPlayer;
+                    const currentListId = player.getPlaylistId();
+
+                    const isAdList = state.ads.config && state.ads.config.lists.some(l => {
+                        try {
+                            const u = new URL(l.url);
+                            return u.searchParams.get('list') === currentListId;
+                        } catch (e) { return false; }
+                    });
+
+                    if (isAdList) {
+                        console.warn("Detected Ad Playlist ending while not in Ad Mode. Logic Loop Prevention.");
+                        if (state.ads.resumeState && state.ads.resumeState.listId) {
+                            console.log("Attempting to force resume...");
+                            finishAdBreak();
+                        }
+                        return;
+                    }
+
+                    // Check if we should trigger an ad break
+                    const adsValid = state.ads.enabled && state.ads.adsPerBreak > 0 && state.ads.config;
+                    const activePlaylists = state.ads.config ? state.ads.config.lists.filter(l => l.enabled) : [];
+
+                    const timeSinceLastAd = Date.now() - (state.ads.lastAdEndTime || 0);
+                    const cooldownActive = timeSinceLastAd < 30000;
+
+                    if (cooldownActive && adsValid) {
+                        console.log(`⏳ Skipping Ad Break (Cooldown: ${Math.round(timeSinceLastAd / 1000)}s/30s)`);
+                    }
+
+                    if (adsValid && activePlaylists.length > 0 && !cooldownActive) {
+                        // Get current playlist context
+                        const playlist = player.getPlaylist();
+                        const index = player.getPlaylistIndex();
+                        const listId = player.getPlaylistId();
+
+                        if (listId) {
+                            state.ads.resumeState = {
+                                type: 'playlist',
+                                listId: listId,
+                                index: index + 1, // Resume at next
+                                time: 0
+                            };
+                            startAdBreak();
+                        }
+                    }
+                }
+            }
+        }
+
+        function startAdBreak() {
+            // Guard: If we are already mid-break, don't restart or clobber resume state
+            if (state.ads.isPlayingAd && state.ads.playCountInBreak > 0) {
+                console.log("⚠️ Ad break already in progress, ignoring duplicate start request.");
+                return;
+            }
+
+            if (!state.ads.resumeState || !state.ads.resumeState.listId) {
+                console.error("❌ Cannot start ad break - no resume state");
+                return;
+            }
+
+            console.log(`🎬 START AD BREAK (${state.ads.adsPerBreak} ads) | Resume: ${state.ads.resumeState.listId}[${state.ads.resumeState.index}]`);
+
+            state.ads.isPlayingAd = true;
+            state.ads.playCountInBreak = 0;
+            adBreakStartTime = Date.now();
+
+            // Set failsafe timeout
+            if (adFailsafeTimeout) clearTimeout(adFailsafeTimeout);
+            adFailsafeTimeout = setTimeout(() => {
+                console.error("🚨 AD BREAK TIMEOUT (2min) - forcing resume");
+                forceResumeContent();
+            }, AD_BREAK_TIMEOUT_MS);
+
+            loadNextAd();
+        }
+
+        function loadNextAd() {
+            if (state.ads.playCountInBreak >= state.ads.adsPerBreak) {
+                finishAdBreak();
+                return;
+            }
+
+            // Pick a playlist
+            const activeLists = state.ads.config.lists.filter(l => l.enabled);
+            if (activeLists.length === 0) {
+                finishAdBreak();
+                return;
+            }
+
+            const listConfig = activeLists[Math.floor(Math.random() * activeLists.length)];
+
+            // Extract List ID
+            let listId = null;
+            try {
+                const u = new URL(listConfig.url);
+                listId = u.searchParams.get('list');
+            } catch (e) { }
+
+            if (!listId) {
+                finishAdBreak();
+                return;
+            }
+
+            console.log("Loading Ad Playlist:", listConfig.name);
+            currentAdVideoId = null; // Reset current ID tracking
+
+            state.ytPlayer.loadPlaylist({
+                list: listId,
+                listType: 'playlist',
+                index: 0,
+                startSeconds: 0
+            });
+
+            state.ads.seekingAd = true;
+        }
+
+        function handleAdFinished() {
+            state.ads.playCountInBreak++;
+
+            // Track the video that just finished using captured ID
+            if (currentAdVideoId) {
+                state.ads.videoPlayCounts[currentAdVideoId] = (state.ads.videoPlayCounts[currentAdVideoId] || 0) + 1;
+                saveAdCounts();
+                console.log("Ad Played (Saved):", currentAdVideoId, "Count:", state.ads.videoPlayCounts[currentAdVideoId]);
+            } else {
+                console.warn("Could not capture Ad Video ID, count not updated.");
+            }
+
+            console.log(`📊 Progress: ${state.ads.playCountInBreak}/${state.ads.adsPerBreak}`);
+
+            if (state.ads.playCountInBreak < state.ads.adsPerBreak) {
+                setTimeout(() => loadNextAd(), 500);
+            } else {
+                finishAdBreak();
+            }
+        }
+
+        function finishAdBreak() {
+            const duration = adBreakStartTime ? ((Date.now() - adBreakStartTime) / 1000).toFixed(1) : '??';
+            console.log(`✅ AD BREAK COMPLETE (${duration}s) - Resuming`);
+
+            if (adFailsafeTimeout) {
+                clearTimeout(adFailsafeTimeout);
+                adFailsafeTimeout = null;
+            }
+
+            state.ads.isPlayingAd = false;
+            state.ads.seekingAd = false;
+            state.ads.lastAdEndTime = Date.now();
+            adBreakStartTime = null;
+
+            const resume = state.ads.resumeState;
+            if (resume && resume.listId) {
+                console.log(`▶️ RESUME: ${resume.listId} at index ${resume.index}`);
+
+                // 1s delay ensures clean state transition
+                setTimeout(() => {
+                    state.ytPlayer.loadPlaylist({
+                        list: resume.listId,
+                        listType: 'playlist',
+                        index: resume.index || 0,
+                        startSeconds: 0
+                    });
+                }, 1000);
+            } else {
+                console.error("❌ No resume state!");
+            }
+        }
+
+        function forceResumeContent() {
+            console.warn("🔧 FORCE RESUME triggered");
+            state.ads.isPlayingAd = false;
+            state.ads.seekingAd = false;
+            adBreakStartTime = null;
+
+            if (adFailsafeTimeout) {
+                clearTimeout(adFailsafeTimeout);
+                adFailsafeTimeout = null;
+            }
+
+            const resume = state.ads.resumeState;
+            if (resume && resume.listId) {
+                state.ytPlayer.loadPlaylist({
+                    list: resume.listId,
+                    listType: 'playlist',
+                    index: resume.index || 0,
+                    startSeconds: 0
+                });
+            }
+        }
+
+        function onPlayerError(event) {
+            console.error("YouTube Player Error:", event.data);
+
+            if (state.ads.isPlayingAd) {
+                console.log("Ad Error encountered. Skipping/Blacklisting ad.");
+
+                // Identify bad ad
+                // Identify bad ad
+                let badVidId = currentAdVideoId;
+                const player = state.ytPlayer;
+
+                // If we don't have the ID, try to get it from the player
+                if (!badVidId && player && typeof player.getVideoData === 'function') {
+                    try {
+                        const d = player.getVideoData();
+                        if (d) badVidId = d.video_id;
+                    } catch (e) { }
+                }
+
+                // fallback: if we still don't have an ID (common with error 150/100), 
+                // use the current index to find the ID from the playlist array if available? 
+                // Getting the full playlist is hard, but we can try getting the ID from "playlist" array if we had it cached?
+                // Better approach: track the index we TRIED to play.
+                if (!badVidId && player && typeof player.getPlaylistIndex === 'function') {
+                    const badIndex = player.getPlaylistIndex();
+                    const playlistIds = player.getPlaylist();
+                    if (playlistIds && playlistIds[badIndex]) {
+                        badVidId = playlistIds[badIndex];
+                        console.log(`🔎 Found bad video ID via playlist index ${badIndex}: ${badVidId}`);
+                    }
+                }
+
+                if (badVidId) {
+                    // Mark as "played" (high count) so we don't pick it again for a long time
+                    console.log("Blacklisting Bad Ad:", badVidId);
+                    state.ads.videoPlayCounts[badVidId] = 9999;
+                    saveAdCounts();
+                } else {
+                    console.warn("Could not identify bad ad ID even with fallback. Skipping slot.");
+                }
+
+                state.ads.seekingAd = false;
+
+                // CRITICAL FIX: Increment count so we don't retry forever on the same slot
+                state.ads.playCountInBreak++;
+
+                console.log(`⏭️ Skipped ad (${state.ads.playCountInBreak}/${state.ads.adsPerBreak})`);
+
+                if (state.ads.playCountInBreak < state.ads.adsPerBreak) {
+                    setTimeout(() => loadNextAd(), 1000);
+                } else {
+                    finishAdBreak();
+                }
+
+            } else {
+                console.log("Content Error encountered. Skipping to next.");
+                if (state.ytPlayer && typeof state.ytPlayer.nextVideo === 'function') {
+                    state.ytPlayer.nextVideo();
+                }
+            }
+        }
+
+        // Debug helpers (call from browser console)
+        window.debugAds = () => {
+            console.log("🔍 Ad System State:", {
+                enabled: state.ads.enabled,
+                adsPerBreak: state.ads.adsPerBreak,
+                isPlayingAd: state.ads.isPlayingAd,
+                seekingAd: state.ads.seekingAd,
+                playCountInBreak: state.ads.playCountInBreak,
+                resumeState: state.ads.resumeState,
+                trackedVideos: Object.keys(state.ads.videoPlayCounts).length,
+                videoCounts: state.ads.videoPlayCounts
+            });
+        };
+        window.resetAds = resetAdCounts;
+        window.forceResume = forceResumeContent;
+
         // Config Loading with careful error handling
         function loadConfig() {
             console.log("Starting loadConfig...");
+            fetchAdConfig();
             fetch('/api/config/default')
                 .then(res => {
                     if (!res.ok) throw new Error("No config");

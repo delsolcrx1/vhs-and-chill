@@ -1,0 +1,15 @@
+{
+    "country": "IE",
+    "lists":[
+        {
+            "name": "90s",
+            "url": "https://www.youtube.com/watch?v=oUsygWvMV7A&list=PLOMLPL1i7Cb9f2wn1OoVzPWlzazbE2e_K",
+            "enabled": true
+        },
+        {
+            "name": "christmas",
+            "url": "https://www.youtube.com/watch?v=Scj3KgDAjGk&list=PLlYXBr_b1b-kLCddvFamlxYwOL5ZsuFPo",
+            "enabled": false
+        }
+    ]
+}
