@@ -266,6 +266,36 @@
             pointer-events: none;
             /* Keep interactions on our UI */
         }
+
+        /* EmulatorJS scaling - ensure it works at any size */
+        #emulator-container {
+            width: 100% !important;
+            height: 100% !important;
+            overflow: hidden;
+            /* clean edges */
+        }
+
+        #game {
+            width: 100% !important;
+            height: 100% !important;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+        }
+
+        /* Force children (canvas/iframe) to fit */
+        #game canvas,
+        #game iframe,
+        #game .ejs-container {
+            max-width: 100% !important;
+            max-height: 100% !important;
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: contain !important;
+            transform: none !important;
+            /* reset any internal scaling that might offset */
+        }
     </style>
     <!-- Load YouTube API -->
     <script src="https://www.youtube.com/iframe_api"></script>
@@ -1515,19 +1545,51 @@
                 tvVideo.classList.add('hidden');
                 document.getElementById('tv-upload').value = "";
             } else if (state.tvSource === 'game') {
-                // Clear emulator
-                if (state.emulator) {
-                    try {
-                        const gameDiv = document.getElementById('game');
-                        gameDiv.innerHTML = '';
-                        if (state.emulator.romUrl) {
-                            URL.revokeObjectURL(state.emulator.romUrl);
+                // Clear emulator - Robust Cleanup
+                try {
+                    console.log("Unloading emulator...");
+
+                    // 1. Try generic Emscripten cleanup if Module exists
+                    // This is the most common cause of "ghost" loops keeping the CPU busy
+                    if (window.Module) {
+                        if (typeof window.Module.pauseMainLoop === 'function') {
+                            window.Module.pauseMainLoop();
                         }
-                    } catch (e) {
-                        console.error('Error clearing emulator:', e);
+                        if (typeof window.Module.abort === 'function') {
+                            try { window.Module.abort(); } catch (e) { } // Abort often throws, that's expected
+                        }
                     }
-                    state.emulator = null;
+
+                    // 2. Try official destroy/stop methods
+                    if (window.EJS_emulator) {
+                        if (typeof window.EJS_emulator.destroy === 'function') window.EJS_emulator.destroy();
+                        else if (typeof window.EJS_emulator.stop === 'function') window.EJS_emulator.stop();
+                        else if (typeof window.EJS_emulator.pause === 'function') window.EJS_emulator.pause();
+                    }
+
+                    // 3. Clear the DOM container explicitly
+                    const gameDiv = document.getElementById('game');
+                    // Remove listeners if possible (cloning replaces the node without listeners)
+                    const newGameDiv = gameDiv.cloneNode(false);
+                    gameDiv.replaceWith(newGameDiv);
+
+                    // 4. Clear Globals 
+                    window.EJS_emulator = null;
+                    window.EJS_player = null;
+                    window.EJS_core = null;
+                    window.EJS_gameUrl = null;
+                    window.EJS_volume = 1.0;
+                    window.Module = null; // Detach Emscripten module
+
+                    // 5. Revoke Blob URL
+                    if (state.emulator && state.emulator.romUrl) {
+                        URL.revokeObjectURL(state.emulator.romUrl);
+                    }
+                } catch (e) {
+                    console.error('Error clearing emulator:', e);
                 }
+
+                state.emulator = null;
                 emulatorContainer.classList.add('hidden');
                 state.gameFile = null;
                 state.gameSystem = '';
@@ -1551,6 +1613,25 @@
                 // TV Handling
                 tvVideo.volume = val;
                 if (state.ytPlayer && state.ytPlayer.setVolume) state.ytPlayer.setVolume(val * 100);
+
+                // EmulatorJS volume control
+                if (state.tvSource === 'game') {
+                    try {
+                        // Try various methods to update volume dynamically
+                        if (window.EJS_emulator && typeof window.EJS_emulator.setVolume === 'function') {
+                            window.EJS_emulator.setVolume(val);
+                        } else if (typeof window.EJS_setVolume === 'function') {
+                            window.EJS_setVolume(val);
+                        } else if (window.EJS_player && typeof window.EJS_player.setVolume === 'function') {
+                            window.EJS_player.setVolume(val);
+                        }
+
+                        // Also update global for robustness
+                        window.EJS_volume = val;
+                    } catch (e) {
+                        // Silent fail if emulator not ready
+                    }
+                }
             } else {
                 // Audio Context Handling
                 state.audio[type].vol = val;
@@ -1600,7 +1681,19 @@
             updateChromaVal('val-chroma-soft', e.target.value);
         });
 
+        let frameCount = 0;
         function processFrame() {
+            // Optimization: Throttle frame rate to save CPU
+            // If gaming, throttle more aggressively (e.g., render 1 every 3 frames -> 20fps background)
+            // If normal, render 1 every 2 frames -> 30fps background (sufficient for room vibe)
+            frameCount++;
+            const skipFrames = state.tvSource === 'game' ? 3 : 2;
+
+            if (frameCount % skipFrames !== 0) {
+                requestAnimationFrame(processFrame);
+                return;
+            }
+
             // If video, check paused. If image, always draw.
             if (state.roomMediaType === 'video') {
                 if (roomVideo.paused || roomVideo.ended) {
@@ -1785,7 +1878,8 @@
                 if (soundObj.customNode) {
                     soundObj.customNode.gain.gain.setTargetAtTime(soundObj.vol, ctx.currentTime, 0.1);
                 }
-                requestAnimationFrame(() => updateLoopSound(type));
+                // Low frequency update is fine for volume changes
+                setTimeout(() => updateLoopSound(type), 250);
                 return;
             }
 
@@ -1794,7 +1888,7 @@
             if (type === 'mower') updateMowerSynth();
             if (type === 'house') updateHouseSynth();
 
-            requestAnimationFrame(() => updateLoopSound(type));
+            setTimeout(() => updateLoopSound(type), 250);
         }
 
         function loadDefaultSound(type, filename) {

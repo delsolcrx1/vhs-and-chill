@@ -1,12 +1,12 @@
 {
-  "roomVideoPath": "config/user_background.png",
-  "roomMediaType": "image",
+  "roomVideoPath": "config/user_background.mp4",
+  "roomMediaType": "video",
   "method": "manual",
   "tvSource": "youtube",
   "ytState": {
-    "url": "https://www.youtube.com/watch?v=zpJx2uSw7YE&list=PLV4Ztn9euy7RcE2dfnn4feNWbM8GvHDU6",
+    "url": "https://www.youtube.com/watch?v=m23AX-QwG1M&list=PLLhOnau-tupRvo6QnYop-0JsHAhCCDhm0",
     "index": 0,
-    "time": 372.957208
+    "time": 28.603430020980834
   },
   "effects": {
     "crt": {
@@ -34,15 +34,15 @@
     "y": 0
   },
   "manualSelection": {
-    "x": 42.1583761046579,
-    "y": 40.17563117453348,
-    "w": 12.225523868328638,
-    "h": 16.355653128430298
+    "x": 42.59059159495234,
+    "y": 23.05159165751921,
+    "w": 16.732913981399296,
+    "h": 23.161361141602637
   },
   "audio": {
     "birds": {
-      "active": false,
-      "vol": 0.46,
+      "active": true,
+      "vol": 0.67,
       "freq": 0.5,
       "int": 0.5
     },
@@ -53,12 +53,12 @@
     },
     "mower": {
       "active": false,
-      "vol": 0.41,
+      "vol": 1,
       "dist": 0.5
     },
     "house": {
       "active": false,
-      "vol": 0.45
+      "vol": 1
     },
     "tvVol": "0.74"
   }
