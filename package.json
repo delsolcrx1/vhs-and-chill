@@ -1,0 +1,14 @@
+{
+  "name": "retro-sim",
+  "version": "1.0.0",
+  "description": "Local server for Retro Room Simulator",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "multer": "^2.0.2",
+    "open": "^8.4.2"
+  }
+}

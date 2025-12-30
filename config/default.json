@@ -1,0 +1,65 @@
+{
+  "roomVideoPath": "config/user_background.png",
+  "roomMediaType": "image",
+  "method": "manual",
+  "tvSource": "youtube",
+  "ytState": {
+    "url": "https://www.youtube.com/watch?v=zpJx2uSw7YE&list=PLV4Ztn9euy7RcE2dfnn4feNWbM8GvHDU6",
+    "index": 0,
+    "time": 372.957208
+  },
+  "effects": {
+    "crt": {
+      "enabled": true,
+      "intensity": 1,
+      "scope": "tv"
+    },
+    "tv": {
+      "brightness": 1,
+      "contrast": 1,
+      "saturation": 1,
+      "hue": 0,
+      "blur": 0,
+      "sepia": 0
+    }
+  },
+  "chroma": {
+    "threshold": 90,
+    "softness": 20
+  },
+  "tvTransform": {
+    "scale": 1,
+    "rotate": 0,
+    "x": 0,
+    "y": 0
+  },
+  "manualSelection": {
+    "x": 42.1583761046579,
+    "y": 40.17563117453348,
+    "w": 12.225523868328638,
+    "h": 16.355653128430298
+  },
+  "audio": {
+    "birds": {
+      "active": false,
+      "vol": 0.46,
+      "freq": 0.5,
+      "int": 0.5
+    },
+    "car": {
+      "active": false,
+      "vol": 1,
+      "freq": 0.5
+    },
+    "mower": {
+      "active": false,
+      "vol": 0.41,
+      "dist": 0.5
+    },
+    "house": {
+      "active": false,
+      "vol": 0.45
+    },
+    "tvVol": "0.74"
+  }
+}

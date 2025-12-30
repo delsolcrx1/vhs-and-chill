@@ -1,0 +1,2088 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retro Room Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+        body {
+            font-family: 'VT323', monospace;
+            background-color: #111;
+            color: #eee;
+            overflow: hidden;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #222;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #00ff00;
+        }
+
+        .crt-overlay {
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        .range-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 8px;
+            background: #333;
+            outline: none;
+            opacity: 0.7;
+            transition: opacity .2s;
+        }
+
+        .range-slider:hover {
+            opacity: 1;
+        }
+
+        .range-slider:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .range-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #00ff00;
+            cursor: pointer;
+            border-radius: 0;
+        }
+
+        .range-slider:disabled::-webkit-slider-thumb {
+            background: #555;
+            cursor: not-allowed;
+        }
+
+        /* Number Input Styling */
+        .num-input {
+            background: #222;
+            border: 1px solid #444;
+            color: #00ff00;
+            font-family: 'VT323', monospace;
+            width: 45px;
+            text-align: right;
+            font-size: 14px;
+            padding-right: 2px;
+        }
+
+        .num-input:focus {
+            outline: none;
+            border-color: #00ff00;
+        }
+
+        #tv-container {
+            transition: width 0.3s, height 0.3s;
+        }
+
+        .control-panel {
+            backdrop-filter: blur(10px);
+            background-color: rgba(0, 0, 0, 0.85);
+            border-right: 2px solid #333;
+            transition: transform 0.3s ease-in-out;
+        }
+
+        .control-panel.hidden-panel {
+            transform: translateX(-100%);
+        }
+
+        .toggle-btn {
+            transition: all 0.2s;
+        }
+
+        .toggle-btn.active {
+            background-color: #00ff00;
+            color: #000;
+            box-shadow: 0 0 10px #00ff00;
+        }
+
+        /* Remote Control Styling */
+        #remote-panel {
+            border-left: 2px solid #333;
+            background-color: #1a1a1a;
+            /* slightly lighter than pure black for plastic feel */
+            box-shadow: -5px 0 15px rgba(0, 0, 0, 0.8);
+            transform: translateX(100%);
+        }
+
+        #remote-panel.visible-panel {
+            transform: translateX(0);
+        }
+
+        .remote-btn {
+            background: #2a2a2a;
+            border: 2px solid #111;
+            border-bottom: 4px solid #111;
+            border-right: 4px solid #111;
+            color: #ccc;
+            border-radius: 4px;
+            transition: all 0.1s;
+            text-transform: uppercase;
+            font-family: 'VT323', monospace;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .remote-btn:active {
+            transform: translate(2px, 2px);
+            border-bottom: 2px solid #111;
+            border-right: 2px solid #111;
+        }
+
+        .remote-btn-power {
+            background: #d00;
+            color: #fff;
+            box-shadow: 0 0 5px rgba(255, 0, 0, 0.5);
+        }
+
+        .remote-btn-power.on {
+            background: #0d0;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.8);
+        }
+
+        .remote-group {
+            background: #222;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #333;
+        }
+
+        .remote-label {
+            font-size: 10px;
+            color: #666;
+            text-align: center;
+            margin-bottom: 5px;
+            letter-spacing: 1px;
+        }
+
+        /* Helper for TV Layering */
+        .tv-layer-front {
+            z-index: 50 !important;
+            /* Above canvas */
+        }
+
+        .tv-layer-back {
+            z-index: 10 !important;
+            /* Below canvas */
+        }
+
+        /* Selection Box Styling */
+        #selection-box {
+            border: 2px dashed #ff0000;
+            background-color: rgba(255, 0, 0, 0.2);
+            position: absolute;
+            pointer-events: none;
+            display: none;
+            z-index: 100;
+        }
+
+        .cursor-crosshair {
+            cursor: crosshair !important;
+        }
+
+        /* File input override styling */
+        .custom-file-input::-webkit-file-upload-button {
+            visibility: hidden;
+            width: 0;
+        }
+
+        .custom-file-input::before {
+            content: 'Load MP3/WAV';
+            display: inline-block;
+            background: #333;
+            border: 1px solid #555;
+            padding: 2px 6px;
+            outline: none;
+            white-space: nowrap;
+            cursor: pointer;
+            font-size: 10px;
+            color: #aaa;
+        }
+
+        .custom-file-input:hover::before {
+            background: #444;
+            color: #fff;
+        }
+
+        /* Scanline animation for static */
+        @keyframes scan {
+            0% {
+                transform: translateY(0);
+            }
+
+            100% {
+                transform: translateY(100vh);
+            }
+        }
+
+        .synth-controls {
+            transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+            max-height: 100px;
+            opacity: 1;
+            overflow: hidden;
+        }
+
+        .synth-controls.hidden-ctrl {
+            max-height: 0;
+            opacity: 0;
+            padding: 0;
+            margin: 0;
+        }
+
+        /* YouTube Container helper to prevent pointer event stealing in chroma mode unless necessary, 
+           though we mostly control via API */
+        .yt-wrapper {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            /* Keep interactions on our UI */
+        }
+    </style>
+    <!-- Load YouTube API -->
+    <script src="https://www.youtube.com/iframe_api"></script>
+</head>
+
+<body class="h-screen w-screen flex relative">
+
+    <!-- Sidebar Controls -->
+    <div id="sidebar" class="control-panel absolute z-50 h-full w-80 flex flex-col p-4 overflow-y-auto left-0 top-0">
+        <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-2">
+            <h1 class="text-2xl text-green-500 tracking-wider">RETRO SIM v1.5</h1>
+            <div class="flex gap-2">
+                <button id="save-config-btn"
+                    class="text-xs bg-blue-900 px-2 py-1 rounded text-white hover:bg-blue-700 border border-blue-800">SAVE</button>
+                <button id="hide-menu-btn" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Format -->
+        <div class="mb-6">
+            <h2 class="text-lg text-green-400 mb-2 border-b border-gray-800 pb-1">DISPLAY FORMAT</h2>
+            <div class="flex gap-2">
+                <button onclick="setRatio('16:9')"
+                    class="flex-1 bg-gray-800 py-2 hover:bg-gray-700 border border-gray-600 text-sm">16:9 (TV)</button>
+                <button onclick="setRatio('9:16')"
+                    class="flex-1 bg-gray-800 py-2 hover:bg-gray-700 border border-gray-600 text-sm">9:16
+                    (MOBILE)</button>
+            </div>
+        </div>
+
+        <!-- Video Uploads -->
+        <div class="mb-6">
+            <h2 class="text-lg text-green-400 mb-2 border-b border-gray-800 pb-1">VIDEO SOURCES</h2>
+
+            <div class="mb-4">
+                <label class="block text-gray-400 text-sm mb-1">1. Room (Background)</label>
+                <input type="file" id="room-upload" accept="video/*,image/*"
+                    class="w-full text-sm text-gray-500 file:mr-2 file:py-1 file:px-2 file:border-0 file:text-sm file:font-semibold file:bg-green-900 file:text-green-100 hover:file:bg-green-700" />
+            </div>
+
+            <!-- Method Selection -->
+            <div class="mt-4 border-t border-gray-800 pt-2">
+                <label class="block text-green-400 text-sm mb-2">PLACEMENT METHOD</label>
+                <div class="flex flex-col gap-2">
+                    <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
+                        <input type="radio" name="place-method" value="chroma" checked class="accent-green-500">
+                        <span>Chroma Key (Green Screen)</span>
+                    </label>
+                    <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
+                        <input type="radio" name="place-method" value="manual" class="accent-green-500">
+                        <span>Manual Selection (Draw Box)</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Chroma Controls -->
+            <div id="chroma-controls" class="mt-3 bg-gray-900 p-2 rounded border border-gray-800">
+                <div class="text-[10px] text-green-500 uppercase tracking-widest mb-1">Green Screen Settings</div>
+                <div class="flex justify-between mt-1">
+                    <div class="text-xs text-gray-500">Threshold</div>
+                    <div class="text-xs text-gray-300" id="val-chroma-thresh">90</div>
+                </div>
+                <input type="range" id="chroma-threshold" min="0" max="200" value="90" class="range-slider mt-1">
+
+                <div class="flex justify-between mt-2">
+                    <div class="text-xs text-gray-500">Softness</div>
+                    <div class="text-xs text-gray-300" id="val-chroma-soft">20</div>
+                </div>
+                <input type="range" id="chroma-softness" min="0" max="100" value="20" class="range-slider mt-1">
+            </div>
+
+            <!-- Manual Transform Controls -->
+            <div id="transform-controls" class="mt-3 bg-gray-900 p-2 rounded border border-gray-800">
+                <div class="text-[10px] text-blue-400 uppercase tracking-widest mb-1 flex justify-between items-center">
+                    <span>Transform</span>
+                    <div class="flex items-center gap-2">
+                        <label class="flex items-center gap-1 cursor-pointer select-none">
+                            <input type="checkbox" id="lock-manual" class="accent-red-500 w-3 h-3">
+                            <span class="text-[8px] text-gray-500 uppercase">LOCK</span>
+                        </label>
+                        <span id="manual-hint" class="hidden text-red-400 animate-pulse text-[8px]">DRAG!</span>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <div class="text-xs text-gray-500">Scale</div>
+                        <input type="range" id="tv-scale" min="0.1" max="2" step="0.05" value="1" class="range-slider">
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500">Rotation</div>
+                        <input type="range" id="tv-rotate" min="-45" max="45" value="0" class="range-slider">
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500">Pos X</div>
+                        <input type="range" id="tv-x" min="-100" max="100" value="0" class="range-slider">
+                    </div>
+                    <div>
+                        <div class="text-xs text-gray-500">Pos Y</div>
+                        <input type="range" id="tv-y" min="-100" max="100" value="0" class="range-slider">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Visual Effects -->
+        <div class="mb-6">
+            <h2 class="text-lg text-green-400 mb-2 border-b border-gray-800 pb-1">VISUAL EFFECTS</h2>
+
+            <!-- CRT Effects -->
+            <div class="mb-4 p-2 bg-gray-900 rounded border border-gray-800">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm text-gray-300">CRT Overlay</span>
+                    <button id="btn-crt"
+                        class="toggle-btn active w-4 h-4 rounded-full border border-gray-600 bg-gray-800"></button>
+                </div>
+                <div>
+                    <div class="flex justify-between mb-1">
+                        <label class="text-[10px] text-gray-500">Scanline Intensity</label>
+                        <span id="val-crt-int" class="text-[10px] text-gray-400">30%</span>
+                    </div>
+                    <input type="range" id="crt-intensity" min="0" max="1" step="0.05" value="0.3"
+                        class="range-slider mb-2">
+
+                    <div class="flex gap-2 text-[10px] text-gray-400">
+                        <label
+                            class="flex items-center gap-1 bg-black px-2 py-1 rounded border border-gray-700 flex-1 justify-center cursor-pointer">
+                            <input type="radio" name="crt-scope" value="screen" checked class="accent-green-500"> Screen
+                        </label>
+                        <label
+                            class="flex items-center gap-1 bg-black px-2 py-1 rounded border border-gray-700 flex-1 justify-center cursor-pointer">
+                            <input type="radio" name="crt-scope" value="tv" class="accent-green-500"> TV Only
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TV Post-Processing -->
+            <div class="mb-4 p-2 bg-gray-900 rounded border border-gray-800">
+                <div class="text-[10px] text-blue-400 uppercase tracking-widest mb-2">TV Post-Processing</div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <div class="flex justify-between"><label class="text-[10px] text-gray-500">Brightness</label>
+                        </div>
+                        <input type="range" id="fx-bright" min="0" max="2" step="0.05" value="1" class="range-slider">
+                    </div>
+                    <div>
+                        <div class="flex justify-between"><label class="text-[10px] text-gray-500">Contrast</label>
+                        </div>
+                        <input type="range" id="fx-contrast" min="0" max="2" step="0.05" value="1" class="range-slider">
+                    </div>
+                    <div>
+                        <div class="flex justify-between"><label class="text-[10px] text-gray-500">Saturation</label>
+                        </div>
+                        <input type="range" id="fx-sat" min="0" max="3" step="0.05" value="1" class="range-slider">
+                    </div>
+                    <div>
+                        <div class="flex justify-between"><label class="text-[10px] text-gray-500">Hue</label></div>
+                        <input type="range" id="fx-hue" min="0" max="360" step="10" value="0" class="range-slider">
+                    </div>
+                    <div>
+                        <div class="flex justify-between"><label class="text-[10px] text-gray-500">Blur</label></div>
+                        <input type="range" id="fx-blur" min="0" max="10" step="0.5" value="0" class="range-slider">
+                    </div>
+                    <div>
+                        <div class="flex justify-between"><label class="text-[10px] text-gray-500">Sepia</label></div>
+                        <input type="range" id="fx-sepia" min="0" max="1" step="0.05" value="0" class="range-slider">
+                    </div>
+                </div>
+                <button id="reset-fx"
+                    class="mt-2 w-full text-[10px] bg-gray-800 hover:bg-gray-700 py-1 rounded text-gray-400">RESET VIDEO
+                    FX</button>
+            </div>
+        </div>
+
+        <!-- Audio Mixer -->
+        <div class="mb-6 flex-1">
+            <h2 class="text-lg text-green-400 mb-2 border-b border-gray-800 pb-1">AUDIO MIXER <button id="audio-init"
+                    class="text-xs bg-red-900 px-2 rounded ml-2">START AUDIO</button></h2>
+
+            <!-- TV Audio -->
+            <div class="mb-4">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="text-sm text-blue-300">TV Volume</span>
+                </div>
+                <div class="flex gap-2 items-center">
+                    <input type="range" id="vol-tv" min="0" max="1" step="0.01" value="1"
+                        class="range-slider mb-1 flex-1">
+                    <input type="number" id="vol-tv-num" min="0" max="100" value="100" class="num-input">
+                </div>
+            </div>
+
+            <!-- Birds -->
+            <div class="mb-4 p-2 bg-gray-900 rounded border border-gray-800">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm">Birds</span>
+                    <button id="btn-birds"
+                        class="toggle-btn w-4 h-4 rounded-full border border-gray-600 bg-gray-800"></button>
+                </div>
+                <div class="flex gap-2 items-center mb-2">
+                    <input type="range" id="vol-birds" min="0" max="100" value="50" class="range-slider flex-1">
+                    <input type="number" id="vol-birds-num" min="0" max="100" value="50" class="num-input">
+                </div>
+                <div id="synth-birds" class="grid grid-cols-2 gap-2 mb-2 synth-controls">
+                    <div>
+                        <label class="text-[10px] text-gray-500 block">Freq</label>
+                        <input type="range" id="freq-birds" class="range-slider">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-gray-500 block">Intensity</label>
+                        <input type="range" id="int-birds" class="range-slider">
+                    </div>
+                </div>
+
+
+                <input type="file" id="file-birds" accept="audio/*"
+                    class="custom-file-input w-full text-xs text-gray-600">
+            </div>
+
+            <!-- Traffic -->
+            <div class="mb-4 p-2 bg-gray-900 rounded border border-gray-800">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm">Traffic</span>
+                    <button id="btn-car"
+                        class="toggle-btn w-4 h-4 rounded-full border border-gray-600 bg-gray-800"></button>
+                </div>
+                <div class="flex gap-2 items-center mb-2">
+                    <input type="range" id="vol-car" min="0" max="100" value="50" class="range-slider flex-1">
+                    <input type="number" id="vol-car-num" min="0" max="100" value="50" class="num-input">
+                </div>
+                <div id="synth-car" class="grid grid-cols-2 gap-2 mb-2 synth-controls">
+                    <div>
+                        <label class="text-[10px] text-gray-500 block">Frequency</label>
+                        <input type="range" id="freq-car" class="range-slider">
+                    </div>
+                </div>
+                <input type="file" id="file-car" accept="audio/*"
+                    class="custom-file-input w-full text-xs text-gray-600">
+            </div>
+
+            <!-- Lawnmower -->
+            <div class="mb-4 p-2 bg-gray-900 rounded border border-gray-800">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm">Lawnmower</span>
+                    <button id="btn-mower"
+                        class="toggle-btn w-4 h-4 rounded-full border border-gray-600 bg-gray-800"></button>
+                </div>
+                <div class="flex gap-2 items-center mb-2">
+                    <input type="range" id="vol-mower" min="0" max="100" value="50" class="range-slider flex-1">
+                    <input type="number" id="vol-mower-num" min="0" max="100" value="50" class="num-input">
+                </div>
+                <div id="synth-mower" class="grid grid-cols-2 gap-2 mb-2 synth-controls">
+                    <div>
+                        <label class="text-[10px] text-gray-500 block">Distance</label>
+                        <input type="range" id="dist-mower" class="range-slider">
+                    </div>
+                </div>
+                <input type="file" id="file-mower" accept="audio/*"
+                    class="custom-file-input w-full text-xs text-gray-600">
+            </div>
+
+            <!-- Talking -->
+            <div class="mb-4 p-2 bg-gray-900 rounded border border-gray-800">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm">Talking</span>
+                    <button id="btn-house"
+                        class="toggle-btn w-4 h-4 rounded-full border border-gray-600 bg-gray-800"></button>
+                </div>
+                <div class="flex gap-2 items-center mb-2">
+                    <input type="range" id="vol-house" min="0" max="100" value="50" class="range-slider flex-1">
+                    <input type="number" id="vol-house-num" min="0" max="100" value="50" class="num-input">
+                </div>
+                <input type="file" id="file-house" accept="audio/*"
+                    class="custom-file-input w-full text-xs text-gray-600">
+            </div>
+        </div>
+    </div>
+
+    <!-- Remote Control Panel -->
+    <div id="remote-panel"
+        class="control-panel absolute z-50 h-full w-48 flex flex-col p-4 overflow-y-auto right-0 top-0">
+        <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-2">
+            <h1 class="text-xl text-green-500 tracking-wider">REMOTE</h1>
+            <button id="hide-remote-btn" class="text-gray-400 hover:text-white">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        </div>
+
+        <!-- Source Tabs -->
+        <div class="flex gap-1 mb-4 border-b border-gray-700 pb-1">
+            <button id="tab-file"
+                class="flex-1 text-[10px] font-bold py-1 bg-gray-800 hover:bg-gray-700 text-gray-400 active-tab">FILE</button>
+            <button id="tab-url"
+                class="flex-1 text-[10px] font-bold py-1 bg-gray-800 hover:bg-gray-700 text-gray-400">URL</button>
+            <button id="tab-channels"
+                class="flex-1 text-[10px] font-bold py-1 bg-gray-800 hover:bg-gray-700 text-gray-400">CHANNELS</button>
+        </div>
+
+        <!-- TV Source Controls (Moved & Refactored) -->
+        <div id="remote-content-area" class="mb-4">
+            <!-- FILE TAB -->
+            <div id="panel-file" class="block">
+                <div class="mb-2 text-center">
+                    <input type="file" id="tv-upload" accept="video/*" class="hidden" />
+                    <label for="tv-upload"
+                        class="cursor-pointer block w-full py-2 bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold rounded border border-blue-700">
+                        <i class="fas fa-file-video mr-2"></i> SELECT VIDEO FILE
+                    </label>
+                </div>
+                <div class="text-[10px] text-gray-500 text-center">Supports MP4, WebM, MKV</div>
+            </div>
+
+            <!-- URL TAB -->
+            <div id="panel-url" class="hidden">
+                <div class="flex gap-1 mb-2">
+                    <input type="text" id="yt-url" placeholder="Paste URL..."
+                        class="w-full bg-gray-900 border border-gray-700 text-xs p-2 text-white placeholder-gray-600 focus:outline-none focus:border-red-500 rounded">
+                    <button id="yt-load-btn"
+                        class="bg-red-900 text-white text-xs px-2 hover:bg-red-700 border border-red-800 rounded">GO</button>
+                </div>
+                <div class="text-[10px] text-gray-500 text-center">YouTube Videos & Playlists</div>
+            </div>
+
+            <!-- CHANNELS TAB -->
+            <div id="panel-channels" class="hidden">
+                <div id="channels-list" class="flex flex-col gap-2 max-h-96 overflow-y-auto pr-1">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Power -->
+        <div class="remote-group text-center">
+            <div class="remote-label">POWER</div>
+            <button id="remote-power" class="remote-btn remote-btn-power w-12 h-12 rounded-full mx-auto on">
+                <i class="fas fa-power-off text-xl"></i>
+            </button>
+        </div>
+
+        <!-- Playback -->
+        <div class="remote-group">
+            <div class="remote-label">PLAYBACK</div>
+            <!-- Video Fit Mode -->
+            <div class="flex justify-center mb-2">
+                <select id="video-fit"
+                    class="bg-black text-[10px] text-gray-400 border border-gray-700 p-1 w-full rounded text-center">
+                    <option value="cover">ZOOM (COVER)</option>
+                    <option value="contain">FIT (CONTAIN)</option>
+                    <option value="fill">STRETCH (FILL)</option>
+                </select>
+            </div>
+            <div class="flex gap-2 justify-center mb-2">
+                <button id="remote-play" class="remote-btn w-10 h-10">
+                    <i class="fas fa-play"></i>
+                </button>
+                <button id="remote-pause" class="remote-btn w-10 h-10">
+                    <i class="fas fa-pause"></i>
+                </button>
+            </div>
+            <div class="flex gap-2 justify-center mb-2">
+                <button id="remote-prev" class="remote-btn w-10 h-10" title="Prev Video">
+                    <i class="fas fa-step-backward"></i>
+                </button>
+                <button id="remote-next" class="remote-btn w-10 h-10" title="Next Video">
+                    <i class="fas fa-step-forward"></i>
+                </button>
+            </div>
+            <div class="flex justify-center">
+                <button id="remote-eject" class="remote-btn w-full py-1 text-xs">
+                    <i class="fas fa-eject mr-2"></i> EJECT / UNLOAD
+                </button>
+            </div>
+        </div>
+
+        <!-- Volume -->
+        <div class="remote-group">
+            <div class="remote-label">TV VOLUME</div>
+            <div class="flex gap-2 justify-center">
+                <button id="remote-vol-down" class="remote-btn w-10 h-10">
+                    <i class="fas fa-minus"></i>
+                </button>
+                <button id="remote-vol-up" class="remote-btn w-10 h-10">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <button id="show-remote-btn"
+        class="absolute top-4 right-4 z-40 text-white bg-black/50 p-2 rounded hover:bg-green-600 transition">
+        <i class="fas fa-chevron-left"></i>
+    </button>
+
+    <!-- Show Menu Button (Fixed) -->
+    <button id="show-menu-btn"
+        class="absolute top-4 left-4 z-40 text-white bg-black/50 p-2 rounded hover:bg-green-600 transition hidden">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Main Viewport -->
+    <div class="flex-1 flex items-center justify-center bg-black relative w-full h-full overflow-hidden">
+
+        <!-- The Container that respects aspect ratio -->
+        <div id="aspect-container" class="relative bg-black shadow-2xl overflow-hidden"
+            style="width: 100%; height: 100%; max-width: 177.78vh; max-height: 56.25vw;">
+
+            <!-- Selection Box Overlay -->
+            <div id="selection-box"></div>
+
+            <!-- Layer 1: The TV Content -->
+            <!-- We change classes here to move it between back (chroma) and front (manual) -->
+            <div id="tv-layer-container" class="absolute inset-0 pointer-events-none overflow-hidden z-10">
+                <div id="tv-transform-wrapper"
+                    class="relative w-full h-full flex items-center justify-center transform transition-transform duration-75">
+                    <!-- Static Noise Canvas (Fallback) -->
+                    <canvas id="static-canvas" class="absolute inset-0 w-full h-full z-0 opacity-100"></canvas>
+
+                    <!-- The User's TV Video (File) -->
+                    <video id="tv-video" loop playsinline crossorigin="anonymous"
+                        class="absolute max-w-none z-10 hidden"
+                        style="width: 100%; height: 100%; object-fit: cover;"></video>
+
+                    <!-- YouTube Player Wrapper -->
+                    <div id="yt-player-container" class="absolute inset-0 w-full h-full z-10 hidden">
+                        <div id="yt-player" class="w-full h-full"></div>
+                    </div>
+
+                    <!-- TV CRT Overlay -->
+                    <div id="crt-overlay-tv"
+                        class="absolute inset-0 z-20 crt-overlay opacity-0 pointer-events-none hidden"></div>
+                </div>
+            </div>
+
+            <!-- Layer 2: The Room (Canvas) -->
+            <canvas id="room-canvas"
+                class="absolute inset-0 w-full h-full z-20 pointer-events-none object-cover"></canvas>
+
+            <!-- Hidden source video for the room -->
+            <video id="room-video" loop muted playsinline crossorigin="anonymous" class="hidden"></video>
+            <img id="room-image" class="hidden" crossorigin="anonymous">
+
+            <!-- CRT Scanline Overlay (Screen) -->
+            <div id="crt-overlay-screen" class="absolute inset-0 z-30 crt-overlay opacity-30 pointer-events-none"></div>
+
+            <!-- Instructions Overlay (Removed once started) -->
+            <div id="start-overlay"
+                class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 text-center p-8">
+                <h1 class="text-6xl text-green-500 mb-4 animate-pulse" style="text-shadow: 0 0 20px green;">NO SIGNAL
+                </h1>
+                <p class="text-xl text-gray-300 mb-8 max-w-md">Upload a room video to start. Use the mixer to add custom
+                    audio.</p>
+                <button onclick="document.getElementById('room-upload').click()"
+                    class="px-6 py-3 bg-green-700 hover:bg-green-600 text-white font-bold rounded shadow-[0_0_15px_rgba(0,255,0,0.5)]">
+                    UPLOAD ROOM SOURCE
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- State Management ---
+        const state = {
+            isPlaying: false,
+            audioContext: null,
+            method: 'chroma', // 'chroma' or 'manual'
+            tvSource: 'file', // 'file' or 'youtube'
+            ytPlayer: null,
+            chroma: {
+                threshold: 90,
+                softness: 20
+            },
+            tvTransform: {
+                scale: 1,
+                rotate: 0,
+                x: 0,
+                y: 0
+            },
+            manualSelection: {
+                active: false,
+                x: 0, y: 0, w: 0, h: 0
+            },
+            audio: {
+                birds: { active: false, vol: 0.5, freq: 0.5, int: 0.5, buffer: null, customNode: null },
+                car: { active: false, vol: 0.5, freq: 0.5, buffer: null, customNode: null },
+                mower: { active: false, vol: 0.5, dist: 0.5, instance: null, buffer: null, customNode: null },
+                house: { active: false, vol: 0.5, instance: null, buffer: null, customNode: null }
+            },
+            roomVideoPath: null, // Track path for saving
+            roomMediaType: 'video', // 'video' or 'image'
+            ytState: { url: '', index: 0, time: 0 }, // For resuming
+            effects: {
+                crt: { enabled: true, intensity: 0.3, scope: 'screen' },
+                tv: { brightness: 1, contrast: 1, saturation: 1, hue: 0, blur: 0, sepia: 0 }
+            },
+            lockedManual: false
+        };
+
+        let currentRoomFile = null; // Stored for upload logic
+
+        // --- DOM Elements ---
+        const roomVideo = document.getElementById('room-video');
+        const roomImage = document.getElementById('room-image');
+        const roomCanvas = document.getElementById('room-canvas');
+        const tvVideo = document.getElementById('tv-video');
+        const staticCanvas = document.getElementById('static-canvas');
+        const ctx = roomCanvas.getContext('2d', { willReadFrequently: true });
+        const staticCtx = staticCanvas.getContext('2d');
+        const tvWrapper = document.getElementById('tv-transform-wrapper');
+        const tvLayerContainer = document.getElementById('tv-layer-container');
+        const aspectContainer = document.getElementById('aspect-container');
+        const selectionBox = document.getElementById('selection-box');
+        const ytContainer = document.getElementById('yt-player-container');
+
+        // --- Layout & resizing ---
+        function setRatio(ratio) {
+            if (ratio === '16:9') {
+                aspectContainer.style.maxWidth = '177.78vh';
+                aspectContainer.style.maxHeight = '56.25vw';
+                aspectContainer.style.aspectRatio = '16/9';
+            } else {
+                aspectContainer.style.maxWidth = '56.25vh';
+                aspectContainer.style.maxHeight = '177.78vw';
+                aspectContainer.style.aspectRatio = '9/16';
+            }
+            resizeCanvases();
+        }
+
+        // Set default high-res canvas (prevents low-res static on startup)
+        roomCanvas.width = 1920;
+        roomCanvas.height = 1080;
+        staticCanvas.width = 1920;
+        staticCanvas.height = 1080;
+
+        function resizeCanvases() {
+            // Only defaults if no media is present or logic dictates
+            // For now, we allow the canvas to retain the resolution of the loaded media
+            // If explicit resize is needed, we do it elsewhere
+        }
+
+        // Removed window.resize listener to prevent downscaling resolution
+        // window.addEventListener('resize', resizeCanvases);
+
+        // --- Sidebar Logic ---
+        const sidebar = document.getElementById('sidebar');
+        const hideBtn = document.getElementById('hide-menu-btn');
+        const showBtn = document.getElementById('show-menu-btn');
+
+        hideBtn.addEventListener('click', () => {
+            sidebar.classList.add('hidden-panel');
+            showBtn.classList.remove('hidden');
+        });
+
+        showBtn.addEventListener('click', () => {
+            sidebar.classList.remove('hidden-panel');
+            showBtn.classList.add('hidden');
+        });
+
+        // --- Remote Logic ---
+        const remotePanel = document.getElementById('remote-panel');
+        const hideRemoteBtn = document.getElementById('hide-remote-btn');
+        const showRemoteBtn = document.getElementById('show-remote-btn');
+
+        // Remote Toggle
+        hideRemoteBtn.addEventListener('click', () => {
+            remotePanel.classList.remove('visible-panel');
+            // Note: CSS default transform is 100% (hidden). Class visible-panel makes it 0.
+            showRemoteBtn.classList.remove('hidden');
+        });
+        showRemoteBtn.addEventListener('click', () => {
+            remotePanel.classList.add('visible-panel');
+            showRemoteBtn.classList.add('hidden');
+        });
+
+        // Remote Controls
+        let isTvPowerOn = true;
+        const remotePowerBtn = document.getElementById('remote-power');
+
+        remotePowerBtn.addEventListener('click', () => {
+            isTvPowerOn = !isTvPowerOn;
+            remotePowerBtn.classList.toggle('on');
+            const tvContainer = document.getElementById('tv-layer-container');
+
+            if (isTvPowerOn) {
+                tvContainer.style.visibility = 'visible';
+                if (state.tvSource === 'file' && tvVideo.src) tvVideo.play();
+            } else {
+                tvContainer.style.visibility = 'hidden';
+                if (state.tvSource === 'file') tvVideo.pause();
+                if (state.ytPlayer && state.ytPlayer.pauseVideo) state.ytPlayer.pauseVideo();
+            }
+        });
+
+        document.getElementById('remote-play').addEventListener('click', () => {
+            if (!isTvPowerOn) return;
+            if (state.tvSource === 'file' && tvVideo.src) tvVideo.play();
+            if (state.tvSource === 'youtube' && state.ytPlayer?.playVideo) state.ytPlayer.playVideo();
+        });
+
+        document.getElementById('remote-pause').addEventListener('click', () => {
+            if (!isTvPowerOn) return;
+            if (state.tvSource === 'file' && tvVideo.src) tvVideo.pause();
+            if (state.tvSource === 'youtube' && state.ytPlayer?.pauseVideo) state.ytPlayer.pauseVideo();
+        });
+
+        document.getElementById('remote-eject').addEventListener('click', () => {
+            if (!isTvPowerOn) return;
+            unloadTV();
+        });
+
+        document.getElementById('remote-vol-up').addEventListener('click', () => {
+            if (!isTvPowerOn) return;
+            let c = parseFloat(document.getElementById('vol-tv').value);
+            c = Math.min(1, c + 0.05);
+            updateVolume('tv', c, 'remote');
+        });
+
+        document.getElementById('remote-vol-down').addEventListener('click', () => {
+            if (!isTvPowerOn) return;
+            let c = parseFloat(document.getElementById('vol-tv').value);
+            c = Math.max(0, c - 0.05);
+            updateVolume('tv', c, 'remote');
+        });
+
+        document.getElementById('remote-next').addEventListener('click', () => {
+            if (!isTvPowerOn) return;
+            if (state.tvSource === 'youtube' && state.ytPlayer?.nextVideo) state.ytPlayer.nextVideo();
+        });
+
+        document.getElementById('remote-prev').addEventListener('click', () => {
+            if (!isTvPowerOn) return;
+            if (state.tvSource === 'youtube' && state.ytPlayer?.previousVideo) state.ytPlayer.previousVideo();
+        });
+
+        // --- Source Selection Logic ---
+        const sourceRadios = document.getElementsByName('tv-source');
+        const fileContainer = document.getElementById('source-file-container');
+        const ytInputContainer = document.getElementById('source-youtube-container');
+
+        sourceRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                state.tvSource = e.target.value;
+                if (state.tvSource === 'youtube') {
+                    fileContainer.classList.add('hidden');
+                    ytInputContainer.classList.remove('hidden');
+                    // Clean up file video
+                    tvVideo.classList.add('hidden');
+                    if (!tvVideo.paused) tvVideo.pause();
+                } else {
+                    fileContainer.classList.remove('hidden');
+                    ytInputContainer.classList.add('hidden');
+                    // Clean up YouTube
+                    ytContainer.classList.add('hidden');
+                    if (state.ytPlayer && state.ytPlayer.pauseVideo) state.ytPlayer.pauseVideo();
+                    if (tvVideo.src) tvVideo.classList.remove('hidden');
+                }
+            });
+        });
+
+        // --- Placement Method Logic ---
+        const methodRadios = document.getElementsByName('place-method');
+        const chromaControls = document.getElementById('chroma-controls');
+        const transformControls = document.getElementById('transform-controls');
+        const manualHint = document.getElementById('manual-hint');
+
+        const updateMethodUI = () => {
+            if (state.method === 'manual') {
+                chromaControls.classList.add('opacity-30', 'pointer-events-none');
+                manualHint.classList.remove('hidden');
+
+                document.getElementById('tv-scale').disabled = true;
+                document.getElementById('tv-rotate').disabled = true;
+                document.getElementById('tv-x').disabled = true;
+                document.getElementById('tv-y').disabled = true;
+                transformControls.classList.add('opacity-50');
+
+                tvLayerContainer.classList.remove('tv-layer-back');
+                tvLayerContainer.classList.add('tv-layer-front');
+                aspectContainer.classList.add('cursor-crosshair');
+
+                if (state.manualSelection.w === 0) {
+                    tvLayerContainer.style.width = '0px';
+                    tvLayerContainer.style.height = '0px';
+                } else {
+                    applyManualLayout();
+                }
+            } else {
+                chromaControls.classList.remove('opacity-30', 'pointer-events-none');
+                manualHint.classList.add('hidden');
+
+                document.getElementById('tv-scale').disabled = false;
+                document.getElementById('tv-rotate').disabled = false;
+                document.getElementById('tv-x').disabled = false;
+                document.getElementById('tv-y').disabled = false;
+                transformControls.classList.remove('opacity-50');
+
+                tvLayerContainer.classList.remove('tv-layer-front');
+                tvLayerContainer.classList.add('tv-layer-back');
+                aspectContainer.classList.remove('cursor-crosshair');
+                selectionBox.style.display = 'none';
+
+                tvLayerContainer.style.left = '0';
+                tvLayerContainer.style.top = '0';
+                tvLayerContainer.style.width = '100%';
+                tvLayerContainer.style.height = '100%';
+                updateTVTransform();
+            }
+        };
+
+        methodRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                state.method = e.target.value;
+                updateMethodUI();
+            });
+        });
+
+        // --- Fit Mode Logic ---
+        const fitSelect = document.getElementById('video-fit');
+        fitSelect.addEventListener('change', (e) => {
+            const fit = e.target.value; // cover, contain, fill
+
+            // Apply to File Video
+            tvVideo.style.objectFit = fit;
+
+            // Apply to YouTube Iframe (simulated via width/height CSS if possible, but iframe content is internal)
+            // Best approach for iframe is changing the dimensions of the inner div
+            const ytFrame = document.querySelector('#yt-player iframe');
+            if (ytFrame) {
+                if (fit === 'contain') {
+                    // Not perfectly supported natively by YT iframe without black bars logic, 
+                    // but we can ensure the container doesn't crop
+                    ytFrame.style.width = '100%';
+                    ytFrame.style.height = '100%';
+                    ytFrame.style.objectFit = 'contain';
+                } else if (fit === 'cover') {
+                    ytFrame.style.width = '100%';
+                    ytFrame.style.height = '100%';
+                }
+            }
+        });
+
+        // --- Manual Selection Interaction ---
+        let isSelecting = false;
+        let startX = 0;
+        let startY = 0;
+
+        document.getElementById('lock-manual').addEventListener('change', (e) => {
+            state.lockedManual = e.target.checked;
+            if (state.lockedManual) {
+                aspectContainer.classList.remove('cursor-crosshair');
+                document.getElementById('manual-hint').classList.add('hidden');
+            } else if (state.method === 'manual') {
+                aspectContainer.classList.add('cursor-crosshair');
+                document.getElementById('manual-hint').classList.remove('hidden');
+            }
+        });
+
+        aspectContainer.addEventListener('mousedown', (e) => {
+            if (state.method !== 'manual' || state.lockedManual) return;
+            isSelecting = true;
+
+            const rect = aspectContainer.getBoundingClientRect();
+            startX = e.clientX - rect.left;
+            startY = e.clientY - rect.top;
+
+            selectionBox.style.left = startX + 'px';
+            selectionBox.style.top = startY + 'px';
+            selectionBox.style.width = '0px';
+            selectionBox.style.height = '0px';
+            selectionBox.style.display = 'block';
+
+            tvLayerContainer.style.width = '0px';
+            tvLayerContainer.style.height = '0px';
+        });
+
+        // --- Tab Switching Logic ---
+        const tabs = ['file', 'url', 'channels'];
+        tabs.forEach(t => {
+            document.getElementById(`tab-${t}`).addEventListener('click', () => {
+                // Update visual tabs
+                tabs.forEach(other => {
+                    const btn = document.getElementById(`tab-${other}`);
+                    const panel = document.getElementById(`panel-${other}`);
+                    if (other === t) {
+                        btn.classList.add('active-tab', 'text-white', 'bg-gray-700');
+                        btn.classList.remove('text-gray-400', 'bg-gray-800');
+                        panel.classList.remove('hidden');
+                        panel.classList.add('block');
+                    } else {
+                        btn.classList.remove('active-tab', 'text-white', 'bg-gray-700');
+                        btn.classList.add('text-gray-400', 'bg-gray-800');
+                        panel.classList.remove('block');
+                        panel.classList.add('hidden');
+                    }
+                });
+
+                // Set state logic
+                if (t === 'file') {
+                    state.tvSource = 'file';
+                    tvVideo.classList.remove('hidden');
+                    ytContainer.classList.add('hidden');
+                    if (tvVideo.src) {
+                        tvVideo.play().catch(() => { });
+                    }
+                    if (state.ytPlayer && state.ytPlayer.pauseVideo) state.ytPlayer.pauseVideo();
+                } else {
+                    // Both URL and Channels use YouTube source type
+                    state.tvSource = 'youtube';
+                    tvVideo.classList.add('hidden');
+                    ytContainer.classList.remove('hidden');
+                    if (tvVideo.paused === false) tvVideo.pause();
+                }
+            });
+        });
+
+        // --- Channels Logic ---
+        function fetchChannels() {
+            fetch('/api/channels')
+                .then(res => res.json())
+                .then(channels => {
+                    channels.sort((a, b) => (a.channel || 999) - (b.channel || 999));
+                    const list = document.getElementById('channels-list');
+                    list.innerHTML = '';
+                    if (channels.length > 0) {
+                        list.classList.remove('hidden');
+                        channels.forEach(ch => {
+                            const div = document.createElement('div');
+                            div.className = 'bg-gray-800 p-2 cursor-pointer hover:bg-gray-700 border border-gray-700 rounded flex flex-col gap-1';
+
+                            if (ch.img) {
+                                const img = document.createElement('img');
+                                img.src = ch.img;
+                                img.className = 'w-full h-24 object-cover rounded bg-black mb-1';
+                                div.appendChild(img);
+                            }
+
+                            const text = document.createElement('div');
+                            text.className = 'w-full flex justify-between items-center';
+                            const title = document.createElement('span');
+                            title.className = 'text-xs text-green-400 font-bold truncate tracking-wide';
+                            title.innerText = (ch.channel ? `CH ${ch.channel} ` : '') + (ch.title || "Unknown");
+                            const desc = document.createElement('span');
+                            desc.className = 'text-[10px] text-gray-500 whitespace-nowrap ml-2';
+                            desc.innerText = ch.year || "";
+                            text.appendChild(title);
+                            text.appendChild(desc);
+
+                            div.appendChild(text);
+
+                            div.addEventListener('click', () => {
+                                document.getElementById('yt-url').value = ch.url;
+                                loadYoutube(ch.url);
+                                // Set active state logic if needed
+                            });
+
+                            list.appendChild(div);
+                        });
+                    }
+                })
+                .catch(err => console.log("Channels API not available or empty"));
+        }
+
+        // Init Channels
+        fetchChannels();
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isSelecting) return;
+
+            const rect = aspectContainer.getBoundingClientRect();
+            const currentX = e.clientX - rect.left;
+            const currentY = e.clientY - rect.top;
+
+            const width = Math.abs(currentX - startX);
+            const height = Math.abs(currentY - startY);
+            const left = Math.min(currentX, startX);
+            const top = Math.min(currentY, startY);
+
+            selectionBox.style.left = left + 'px';
+            selectionBox.style.top = top + 'px';
+            selectionBox.style.width = width + 'px';
+            selectionBox.style.height = height + 'px';
+        });
+
+        window.addEventListener('mouseup', (e) => {
+            if (!isSelecting) return;
+            isSelecting = false;
+
+            const rect = aspectContainer.getBoundingClientRect();
+            const sbRect = selectionBox.getBoundingClientRect();
+
+            if (sbRect.width > 10 && sbRect.height > 10) {
+                const relativeLeft = sbRect.left - rect.left;
+                const relativeTop = sbRect.top - rect.top;
+
+                state.manualSelection = {
+                    x: (relativeLeft / rect.width) * 100,
+                    y: (relativeTop / rect.height) * 100,
+                    w: (sbRect.width / rect.width) * 100,
+                    h: (sbRect.height / rect.height) * 100
+                };
+                applyManualLayout();
+            }
+
+            selectionBox.style.display = 'none';
+        });
+
+        function applyManualLayout() {
+            if (state.method !== 'manual') return;
+            const sel = state.manualSelection;
+
+            tvLayerContainer.style.left = sel.x + '%';
+            tvLayerContainer.style.top = sel.y + '%';
+            tvLayerContainer.style.width = sel.w + '%';
+            tvLayerContainer.style.height = sel.h + '%';
+            tvWrapper.style.transform = 'translate(0, 0) scale(1) rotate(0deg)';
+        }
+
+        // --- YouTube API Integration ---
+        function onYouTubeIframeAPIReady() {
+            // Placeholder, player created on demand
+        }
+
+        function loadYoutube(url, startSeconds = 0, startListIndex = 0) {
+            let videoId = null;
+            let listId = null;
+            try {
+                const urlObj = new URL(url);
+                if (urlObj.searchParams.has('list')) listId = urlObj.searchParams.get('list');
+                if (urlObj.searchParams.has('v')) videoId = urlObj.searchParams.get('v');
+                if (url.includes('youtu.be/')) videoId = url.split('youtu.be/')[1].split('?')[0];
+            } catch (e) {
+                console.error("Invalid URL format");
+                return;
+            }
+
+            if (!videoId && !listId) {
+                if (startSeconds === 0 && startListIndex === 0) alert("Could not parse YouTube URL."); // Only alert on manual load
+                return;
+            }
+
+            // Check if YouTube API is loaded
+            if (typeof YT === 'undefined' || typeof YT.Player === 'undefined') {
+                console.log("YouTube API not ready yet, will retry...");
+                setTimeout(() => loadYoutube(url, startSeconds, startListIndex), 500);
+                return;
+            }
+
+            ytContainer.classList.remove('hidden');
+            const playerVars = { 'playsinline': 1, 'controls': 0, 'showinfo': 0, 'rel': 0, 'autoplay': 1, 'mute': 0, 'loop': 1, 'origin': window.location.origin };
+            if (videoId && !listId) playerVars.playlist = videoId;
+            if (startSeconds) playerVars.start = Math.floor(startSeconds);
+            if (startListIndex) playerVars.index = startListIndex;
+
+            if (!state.ytPlayer) {
+                state.ytPlayer = new YT.Player('yt-player', {
+                    height: '100%',
+                    width: '100%',
+                    videoId: videoId || undefined,
+                    playerVars: playerVars,
+                    events: {
+                        'onReady': (event) => {
+                            event.target.setVolume(parseFloat(document.getElementById('vol-tv').value) * 100);
+                            if (listId) event.target.loadPlaylist({ list: listId, listType: 'playlist', index: startListIndex, startSeconds: startSeconds });
+                            else if (startSeconds > 0) event.target.seekTo(startSeconds, true);
+                        }
+                    }
+                });
+            } else {
+                if (listId) state.ytPlayer.loadPlaylist({ list: listId, listType: 'playlist', index: startListIndex, startSeconds: startSeconds });
+                else {
+                    state.ytPlayer.loadVideoById(videoId);
+                    if (startSeconds > 0) state.ytPlayer.seekTo(startSeconds, true);
+                }
+            }
+        }
+
+        document.getElementById('yt-load-btn').addEventListener('click', () => {
+            const url = document.getElementById('yt-url').value;
+            loadYoutube(url);
+        });
+
+
+        // --- Video Handling (File) ---
+        document.getElementById('room-upload').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                currentRoomFile = file; // Capture for saving
+                const url = URL.createObjectURL(file);
+
+                // Determine type
+                if (file.type.startsWith('image/')) {
+                    state.roomMediaType = 'image';
+                    roomImage.src = url;
+                    roomImage.onload = () => {
+                        roomCanvas.width = roomImage.naturalWidth;
+                        roomCanvas.height = roomImage.naturalHeight;
+                        staticCanvas.width = roomCanvas.width;
+                        staticCanvas.height = roomCanvas.height;
+
+                        state.roomVideoPath = null;
+                        document.getElementById('start-overlay').classList.add('hidden');
+                        requestAnimationFrame(processFrame);
+                    };
+                } else {
+                    state.roomMediaType = 'video';
+                    if (roomVideo.src) URL.revokeObjectURL(roomVideo.src);
+                    roomVideo.src = url;
+                    roomVideo.onloadedmetadata = () => {
+                        roomCanvas.width = roomVideo.videoWidth;
+                        roomCanvas.height = roomVideo.videoHeight;
+                        staticCanvas.width = roomCanvas.width;
+                        staticCanvas.height = roomCanvas.height;
+                    };
+                    roomVideo.play();
+                    state.roomVideoPath = null; // Cleared on manual upload
+                    document.getElementById('start-overlay').classList.add('hidden');
+                    requestAnimationFrame(processFrame);
+                }
+                e.target.value = null;
+            }
+        });
+
+        document.getElementById('tv-upload').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const url = URL.createObjectURL(file);
+                tvVideo.src = url;
+                tvVideo.classList.remove('hidden');
+                tvVideo.volume = document.getElementById('vol-tv').value;
+                tvVideo.play().catch(e => console.log("Auto-play prevented"));
+
+                if (state.audioContext && state.audioContext.state === 'suspended') {
+                    state.audioContext.resume();
+                }
+            } else {
+                unloadTV();
+            }
+        });
+
+        // --- Unified Video Controls (handled by Remote Control buttons) ---
+        // Note: Play/Pause/Unload are handled by remote-play, remote-pause, and remote-eject buttons
+
+        function unloadTV() {
+            if (state.tvSource === 'file') {
+                tvVideo.pause();
+                tvVideo.removeAttribute('src');
+                tvVideo.classList.add('hidden');
+                document.getElementById('tv-upload').value = "";
+            } else {
+                if (state.ytPlayer && state.ytPlayer.stopVideo) state.ytPlayer.stopVideo();
+                ytContainer.classList.add('hidden');
+                document.getElementById('yt-url').value = "";
+            }
+        }
+
+        // --- Audio Volume & Sync ---
+        function updateVolume(type, val, source) {
+            // Update State
+            if (type === 'tv') {
+                // TV Handling
+                tvVideo.volume = val;
+                if (state.ytPlayer && state.ytPlayer.setVolume) state.ytPlayer.setVolume(val * 100);
+            } else {
+                // Audio Context Handling
+                state.audio[type].vol = val;
+            }
+
+            // Sync UI
+            const percentage = Math.round(val * 100);
+            if (source !== 'slider') {
+                // Update slider: TV uses 0-1, audio mixer uses 0-100
+                const sliderValue = type === 'tv' ? val : val * 100;
+                document.getElementById(`vol-${type}`).value = sliderValue;
+            }
+            if (source !== 'number') {
+                document.getElementById(`vol-${type}-num`).value = percentage;
+            }
+        }
+
+        // Bind Volume Controls (Slider + Number)
+        ['tv', 'birds', 'car', 'mower', 'house'].forEach(type => {
+            const slider = document.getElementById(`vol-${type}`);
+            const numInput = document.getElementById(`vol-${type}-num`);
+
+            slider.addEventListener('input', (e) => {
+                // TV slider is 0-1, audio mixer sliders are 0-100
+                const val = type === 'tv' ? parseFloat(e.target.value) : parseFloat(e.target.value) / 100;
+                updateVolume(type, val, 'slider');
+            });
+            numInput.addEventListener('input', (e) => {
+                let val = parseInt(e.target.value);
+                if (isNaN(val)) val = 0;
+                if (val > 100) val = 100;
+                if (val < 0) val = 0;
+                updateVolume(type, val / 100, 'number');
+            });
+        });
+
+
+        // --- Chroma Key Processing ---
+        const updateChromaVal = (id, val) => document.getElementById(id).innerText = val;
+
+        document.getElementById('chroma-threshold').addEventListener('input', (e) => {
+            state.chroma.threshold = parseInt(e.target.value);
+            updateChromaVal('val-chroma-thresh', e.target.value);
+        });
+        document.getElementById('chroma-softness').addEventListener('input', (e) => {
+            state.chroma.softness = parseInt(e.target.value);
+            updateChromaVal('val-chroma-soft', e.target.value);
+        });
+
+        function processFrame() {
+            // If video, check paused. If image, always draw.
+            if (state.roomMediaType === 'video') {
+                if (roomVideo.paused || roomVideo.ended) {
+                    requestAnimationFrame(processFrame);
+                    return;
+                }
+                ctx.drawImage(roomVideo, 0, 0, roomCanvas.width, roomCanvas.height);
+            } else {
+                if (roomImage.complete) {
+                    ctx.drawImage(roomImage, 0, 0, roomCanvas.width, roomCanvas.height);
+                }
+            }
+
+            if (state.method === 'chroma') {
+                const frame = ctx.getImageData(0, 0, roomCanvas.width, roomCanvas.height);
+                const data = frame.data;
+                const l = data.length;
+                const threshold = state.chroma.threshold;
+                const softness = state.chroma.softness;
+
+                for (let i = 0; i < l; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+
+                    if (g > r && g > b) {
+                        const maxRB = Math.max(r, b);
+                        const difference = g - maxRB;
+
+                        if (difference > threshold) {
+                            data[i + 3] = 0;
+                        } else if (difference > threshold - softness) {
+                            const alpha = 1 - ((difference - (threshold - softness)) / softness);
+                            data[i + 3] = alpha * 255;
+                        }
+                    }
+                }
+                ctx.putImageData(frame, 0, 0);
+            }
+
+            // Draw static logic
+            let showStatic = false;
+            if (state.tvSource === 'file') {
+                if (tvVideo.paused || tvVideo.classList.contains('hidden') || !tvVideo.src) showStatic = true;
+            } else {
+                // For YouTube, checking playback state is async, so we mostly rely on visibility
+                if (ytContainer.classList.contains('hidden')) showStatic = true;
+            }
+
+            if (showStatic) {
+                drawStatic();
+            }
+
+            requestAnimationFrame(processFrame);
+        }
+
+        function drawStatic() {
+            const w = staticCanvas.width;
+            const h = staticCanvas.height;
+            const idata = staticCtx.createImageData(w, h);
+            const buffer32 = new Uint32Array(idata.data.buffer);
+            const len = buffer32.length;
+
+            for (let i = 0; i < len; i++) {
+                if (Math.random() < 0.5) {
+                    buffer32[i] = 0xff000000;
+                } else {
+                    const gray = Math.random() * 255;
+                    buffer32[i] = (255 << 24) | (gray << 16) | (gray << 8) | gray;
+                }
+            }
+            staticCtx.putImageData(idata, 0, 0);
+        }
+
+        // --- TV Transform Controls ---
+        const updateTVTransform = () => {
+            if (state.method !== 'chroma') return;
+            const { scale, rotate, x, y } = state.tvTransform;
+            tvWrapper.style.transform = `translate(${x}%, ${y}%) rotate(${rotate}deg) scale(${scale})`;
+        };
+
+        document.getElementById('tv-scale').addEventListener('input', (e) => { state.tvTransform.scale = e.target.value; updateTVTransform(); });
+        document.getElementById('tv-rotate').addEventListener('input', (e) => { state.tvTransform.rotate = e.target.value; updateTVTransform(); });
+        document.getElementById('tv-x').addEventListener('input', (e) => { state.tvTransform.x = e.target.value; updateTVTransform(); });
+        document.getElementById('tv-y').addEventListener('input', (e) => { state.tvTransform.y = e.target.value; updateTVTransform(); });
+
+        // --- Audio System ---
+
+
+        function createNoiseBuffer() {
+            const bufferSize = state.audioContext.sampleRate * 2;
+            const buffer = state.audioContext.createBuffer(1, bufferSize, state.audioContext.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+            return buffer;
+        }
+
+        let noiseBuffer = null;
+
+        function startAudioLoop() {
+            if (!noiseBuffer) noiseBuffer = createNoiseBuffer();
+
+            // Load defaults
+            loadDefaultSound('mower', 'lawnmower.mp3');
+            loadDefaultSound('house', 'talking.mp3');
+            loadDefaultSound('birds', 'birds.mp3');
+            loadDefaultSound('car', 'traffic.mp3');
+
+            updateLoopSound('mower');
+            updateLoopSound('house');
+            updateLoopSound('birds');
+            updateLoopSound('car');
+
+            // ... intervals ...
+
+            setInterval(() => {
+                if (state.audio.car.active && !state.audio.car.buffer && Math.random() < state.audio.car.freq * 0.1) playCarSynth();
+            }, 1000);
+
+            setInterval(() => {
+                if (state.audio.birds.active && !state.audio.birds.buffer && Math.random() < state.audio.birds.freq * 0.3) playBirdSynth();
+            }, 500);
+        }
+
+        const handleAudioUpload = (type, e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (!state.audioContext) {
+                alert("Please click 'START AUDIO' first.");
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function (ev) {
+                state.audioContext.decodeAudioData(ev.target.result, function (buffer) {
+                    state.audio[type].buffer = buffer;
+                    updateLoopSound(type);
+
+                    const synthDiv = document.getElementById('synth-' + type);
+                    if (synthDiv) synthDiv.classList.add('hidden-ctrl');
+
+                    const label = e.target.previousElementSibling;
+                    if (!label.innerHTML.includes('Active')) {
+                        label.innerHTML += ' <span class="text-green-500 text-xs">(MP3 Active)</span>';
+                    }
+                });
+            };
+            reader.readAsArrayBuffer(file);
+        };
+
+        ['birds', 'car', 'mower', 'house'].forEach(t => {
+            document.getElementById('file-' + t).addEventListener('change', (e) => handleAudioUpload(t, e));
+        });
+
+        // --- Sound Generation Logic ---
+
+        function updateLoopSound(type) {
+            const ctx = state.audioContext;
+            if (!ctx) return;
+            const soundObj = state.audio[type];
+
+            if (soundObj.buffer) {
+                if (soundObj.active && !soundObj.customNode) {
+                    const src = ctx.createBufferSource();
+                    src.buffer = soundObj.buffer;
+                    src.loop = true;
+                    const gain = ctx.createGain();
+                    src.connect(gain);
+                    gain.connect(ctx.destination);
+                    src.start();
+                    soundObj.customNode = { src, gain };
+                } else if (!soundObj.active && soundObj.customNode) {
+                    soundObj.customNode.src.stop();
+                    soundObj.customNode = null;
+                }
+                if (soundObj.customNode) {
+                    soundObj.customNode.gain.gain.setTargetAtTime(soundObj.vol, ctx.currentTime, 0.1);
+                }
+                requestAnimationFrame(() => updateLoopSound(type));
+                return;
+            }
+
+            if (type === 'birds' || type === 'car') return;
+
+            if (type === 'mower') updateMowerSynth();
+            if (type === 'house') updateHouseSynth();
+
+            requestAnimationFrame(() => updateLoopSound(type));
+        }
+
+        function loadDefaultSound(type, filename) {
+            if (!state.audioContext) return;
+            fetch('./sounds/' + filename)
+                .then(res => {
+                    if (!res.ok) throw new Error("No " + filename);
+                    return res.arrayBuffer();
+                })
+                .then(buf => state.audioContext.decodeAudioData(buf))
+                .then(buffer => {
+                    console.log("Loaded default: " + filename);
+                    state.audio[type].buffer = buffer;
+                    updateLoopSound(type); // Ensure it starts if active
+                    // Hide synths
+                    const synthDiv = document.getElementById('synth-' + type);
+                    if (synthDiv) synthDiv.classList.add('hidden-ctrl');
+                })
+                .catch(e => console.log("Default sound skipped: " + filename));
+        }
+
+        function playBirdSynth() {
+            const ctx = state.audioContext;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            const baseFreq = 2000 + Math.random() * 3000;
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(baseFreq, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(baseFreq + (Math.random() * 1000 - 500), ctx.currentTime + 0.1);
+            const volume = state.audio.birds.vol * state.audio.birds.int;
+            gain.gain.setValueAtTime(0, ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1 + (Math.random() * 0.1));
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.3);
+        }
+
+        function playCarSynth() {
+            const ctx = state.audioContext;
+            const src = ctx.createBufferSource();
+            src.buffer = noiseBuffer;
+            src.loop = true;
+            const filter = ctx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.Q.value = 5;
+            const gain = ctx.createGain();
+            const pan = ctx.createStereoPanner();
+            pan.pan.setValueAtTime(-1, ctx.currentTime);
+            pan.pan.linearRampToValueAtTime(1, ctx.currentTime + 4);
+            filter.frequency.setValueAtTime(100, ctx.currentTime);
+            filter.frequency.linearRampToValueAtTime(400, ctx.currentTime + 2);
+            filter.frequency.linearRampToValueAtTime(100, ctx.currentTime + 4);
+            const vol = state.audio.car.vol;
+            gain.gain.setValueAtTime(0, ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + 2);
+            gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 4);
+            src.connect(filter);
+            filter.connect(gain);
+            gain.connect(pan);
+            pan.connect(ctx.destination);
+            src.start();
+            src.stop(ctx.currentTime + 4.1);
+        }
+
+        let mowerOsc = null;
+        function updateMowerSynth() {
+            const ctx = state.audioContext;
+            const soundObj = state.audio.mower;
+
+            if (soundObj.active && !mowerOsc) {
+                mowerOsc = ctx.createOscillator();
+                mowerOsc.type = 'sawtooth';
+                mowerOsc.frequency.value = 60;
+                const gain = ctx.createGain();
+
+                const nSrc = ctx.createBufferSource();
+                nSrc.buffer = noiseBuffer;
+                nSrc.loop = true;
+                const nGain = ctx.createGain();
+                nSrc.connect(nGain);
+                nGain.connect(gain);
+                nSrc.start();
+
+                mowerOsc.connect(gain);
+
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                gain.connect(filter);
+                filter.connect(ctx.destination);
+
+                mowerOsc.start();
+                soundObj.instance = { osc: mowerOsc, gain: gain, filter: filter, nSrc: nSrc };
+            } else if (!soundObj.active && mowerOsc) {
+                mowerOsc.stop();
+                soundObj.instance.nSrc.stop();
+                mowerOsc = null;
+            }
+            if (mowerOsc) {
+                soundObj.instance.gain.gain.setTargetAtTime(soundObj.vol * 0.3, ctx.currentTime, 0.1);
+                const freq = 100 + (soundObj.dist * 500);
+                soundObj.instance.filter.frequency.setTargetAtTime(freq, ctx.currentTime, 0.1);
+            }
+        }
+
+        let houseNode = null;
+        function updateHouseSynth() {
+            const ctx = state.audioContext;
+            const soundObj = state.audio.house;
+
+            if (soundObj.active && !houseNode) {
+                const src = ctx.createBufferSource();
+                src.buffer = noiseBuffer;
+                src.loop = true;
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 60;
+                const gain = ctx.createGain();
+                src.connect(filter);
+                filter.connect(gain);
+                gain.connect(ctx.destination);
+                src.start();
+                houseNode = { src, gain };
+            } else if (!soundObj.active && houseNode) {
+                houseNode.src.stop();
+                houseNode = null;
+            }
+            if (houseNode) houseNode.gain.gain.setTargetAtTime(soundObj.vol * 0.15, ctx.currentTime, 0.5);
+        }
+
+        // Binding Helper
+        const bindAudio = (type, param, elementId) => {
+            const el = document.getElementById(elementId);
+            if (el) el.addEventListener('input', (e) => {
+                let val = parseFloat(e.target.value);
+                // All bound audio parameters (vol, freq, int, dist) for effects are 0-1 normalized
+                // Inputs are 0-100
+                state.audio[type][param] = val / 100;
+            });
+        };
+        const bindToggle = (type, btnId) => {
+            document.getElementById(btnId).addEventListener('click', (e) => {
+                state.audio[type].active = !state.audio[type].active;
+                e.currentTarget.classList.toggle('active');
+            });
+        };
+
+        bindToggle('birds', 'btn-birds');
+        bindAudio('birds', 'freq', 'freq-birds');
+        bindAudio('birds', 'int', 'int-birds');
+        bindToggle('car', 'btn-car');
+        bindAudio('car', 'freq', 'freq-car');
+        bindToggle('mower', 'btn-mower');
+        bindAudio('mower', 'dist', 'dist-mower');
+        bindToggle('house', 'btn-house');
+
+        // --- Visual Effects Logic ---
+        const crtOverlayScreen = document.getElementById('crt-overlay-screen');
+        const crtOverlayTV = document.getElementById('crt-overlay-tv');
+        const crtBtn = document.getElementById('btn-crt');
+        const crtIntSlider = document.getElementById('crt-intensity');
+
+        // Scope Toggles
+        document.getElementsByName('crt-scope').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                state.effects.crt.scope = e.target.value;
+                updateCRTUI();
+            });
+        });
+
+        // CRT Toggle
+        crtBtn.addEventListener('click', (e) => {
+            state.effects.crt.enabled = !state.effects.crt.enabled;
+            updateCRTUI();
+        });
+
+        crtIntSlider.addEventListener('input', (e) => {
+            state.effects.crt.intensity = parseFloat(e.target.value);
+            document.getElementById('val-crt-int').innerText = Math.round(state.effects.crt.intensity * 100) + '%';
+            if (state.effects.crt.enabled) {
+                const target = state.effects.crt.scope === 'screen' ? crtOverlayScreen : crtOverlayTV;
+                target.style.opacity = state.effects.crt.intensity;
+            }
+        });
+
+        function updateCRTUI() {
+            const { enabled, intensity, scope } = state.effects.crt;
+            const activeScope = scope || 'screen';
+
+            // Sync UI
+            const rb = document.querySelector(`input[name="crt-scope"][value="${activeScope}"]`);
+            if (rb) rb.checked = true;
+
+            if (enabled) {
+                crtBtn.classList.add('active');
+                if (activeScope === 'screen') {
+                    crtOverlayScreen.style.display = 'block';
+                    crtOverlayScreen.style.opacity = intensity;
+                    crtOverlayTV.style.display = 'none';
+                } else {
+                    crtOverlayScreen.style.display = 'none';
+                    crtOverlayTV.classList.remove('hidden');
+                    crtOverlayTV.style.display = 'block';
+                    crtOverlayTV.style.opacity = intensity;
+                }
+            } else {
+                crtBtn.classList.remove('active');
+                crtOverlayScreen.style.display = 'none';
+                crtOverlayTV.style.display = 'none';
+            }
+        }
+
+        // TV Effects
+        const applyTVEffects = () => {
+            const { brightness, contrast, saturation, hue, blur, sepia } = state.effects.tv;
+            const filterString = `brightness(${brightness}) contrast(${contrast}) saturate(${saturation}) hue-rotate(${hue}deg) blur(${blur}px) sepia(${sepia})`;
+            document.getElementById('tv-transform-wrapper').style.filter = filterString;
+        };
+
+        ['bright', 'contrast', 'sat', 'hue', 'blur', 'sepia'].forEach(fx => {
+            document.getElementById(`fx-${fx}`).addEventListener('input', (e) => {
+                const key = fx === 'sat' ? 'saturation' : (fx === 'bright' ? 'brightness' : fx);
+                state.effects.tv[key] = parseFloat(e.target.value);
+                applyTVEffects();
+            });
+        });
+
+        document.getElementById('reset-fx').addEventListener('click', () => {
+            state.effects.tv = { brightness: 1, contrast: 1, saturation: 1, hue: 0, blur: 0, sepia: 0 };
+            // Update UI inputs
+            document.getElementById('fx-bright').value = 1;
+            document.getElementById('fx-contrast').value = 1;
+            document.getElementById('fx-sat').value = 1;
+            document.getElementById('fx-hue').value = 0;
+            document.getElementById('fx-blur').value = 0;
+            document.getElementById('fx-sepia').value = 0;
+            applyTVEffects();
+        });
+
+        // Init
+        setRatio('16:9');
+        drawStatic();
+
+        // --- Config Handling ---
+        const saveBtn = document.getElementById('save-config-btn');
+
+        saveBtn.addEventListener('click', () => {
+            saveConfig();
+        });
+
+        function saveConfig() {
+            const performSave = () => {
+                // Get YouTube state if available
+                let ytState = { url: (document.getElementById('yt-url') ? document.getElementById('yt-url').value : ''), index: 0, time: 0 };
+                if (state.ytPlayer && typeof state.ytPlayer.getCurrentTime === 'function') {
+                    ytState.time = state.ytPlayer.getCurrentTime();
+                    if (typeof state.ytPlayer.getPlaylistIndex === 'function') {
+                        ytState.index = state.ytPlayer.getPlaylistIndex();
+                    }
+                }
+
+                const config = {
+                    roomVideoPath: state.roomVideoPath,
+                    roomMediaType: state.roomMediaType,
+                    method: state.method,
+                    tvSource: state.tvSource,
+                    ytState: ytState,
+                    effects: state.effects,
+                    chroma: state.chroma,
+                    tvTransform: state.tvTransform,
+                    manualSelection: state.manualSelection,
+                    audio: {
+                        birds: { active: state.audio.birds.active, vol: state.audio.birds.vol, freq: state.audio.birds.freq, int: state.audio.birds.int },
+                        car: { active: state.audio.car.active, vol: state.audio.car.vol, freq: state.audio.car.freq },
+                        mower: { active: state.audio.mower.active, vol: state.audio.mower.vol, dist: state.audio.mower.dist },
+                        house: { active: state.audio.house.active, vol: state.audio.house.vol },
+                        tvVol: (document.getElementById('vol-tv') ? document.getElementById('vol-tv').value : 1)
+                    }
+                };
+
+                fetch('/api/config/default', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(config)
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            saveBtn.innerText = "SAVED!";
+                            saveBtn.classList.remove('bg-blue-900', 'hover:bg-blue-700');
+                            saveBtn.classList.add('bg-green-700', 'hover:bg-green-600');
+                            setTimeout(() => {
+                                saveBtn.innerText = "SAVE CONFIG";
+                                saveBtn.classList.add('bg-blue-900', 'hover:bg-blue-700');
+                                saveBtn.classList.remove('bg-green-700', 'hover:bg-green-600');
+                            }, 2000);
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Save failed", err);
+                        alert("Error saving config");
+                    });
+            };
+
+            // Check if we need to upload currentRoomFile
+            if (currentRoomFile) {
+                const originalText = saveBtn.innerText;
+                saveBtn.innerText = "UPLOADING...";
+                const fd = new FormData();
+                fd.append('background', currentRoomFile);
+
+                fetch('/api/upload-background', {
+                    method: 'POST',
+                    body: fd
+                })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success) {
+                            state.roomVideoPath = data.path;
+                            // Keep type sync
+                            if (data.type) state.roomMediaType = data.type;
+
+                            currentRoomFile = null; // Mark handled
+                            performSave();
+                        } else {
+                            alert("Background upload failed: " + (data.error || "Unknown"));
+                            saveBtn.innerText = originalText;
+                        }
+                    })
+                    .catch(e => {
+                        console.error("Upload error", e);
+                        alert("Upload error");
+                        saveBtn.innerText = originalText;
+                    });
+            } else {
+                performSave();
+            }
+        }
+
+        // Create a dedicated audio context button listener
+        const audioInitBtn = document.getElementById('audio-init');
+        if (audioInitBtn) {
+            audioInitBtn.addEventListener('click', async () => {
+                try {
+                    if (!state.audioContext) {
+                        const AudioContext = window.AudioContext || window.webkitAudioContext;
+                        state.audioContext = new AudioContext();
+                    }
+                    if (state.audioContext.state === 'suspended') {
+                        await state.audioContext.resume();
+                    }
+
+                    audioInitBtn.innerText = "AUDIO ACTIVE";
+                    audioInitBtn.classList.remove('bg-red-900');
+                    audioInitBtn.classList.add('bg-green-900');
+
+                    // Ensure global function exists before calling
+                    if (typeof startAudioLoop === 'function') {
+                        startAudioLoop();
+                    } else {
+                        console.error("startAudioLoop not defined");
+                    }
+
+                    const vid = document.getElementById('tv-video');
+                    if (vid && !vid.paused) vid.muted = false;
+                } catch (e) {
+                    console.error("Audio init error:", e);
+                    alert("Audio init failed: " + e.message);
+                }
+            });
+        }
+
+        // Config Loading with careful error handling
+        function loadConfig() {
+            console.log("Starting loadConfig...");
+            fetch('/api/config/default')
+                .then(res => {
+                    if (!res.ok) throw new Error("No config");
+                    return res.json();
+                })
+                .then(config => {
+                    console.log("Loading Config:", config);
+
+                    // 1. Restore Room Background
+                    state.roomMediaType = config.roomMediaType || 'video';
+                    if (config.roomVideoPath) {
+                        state.roomVideoPath = config.roomVideoPath;
+                        if (state.roomMediaType === 'image') {
+                            roomImage.src = config.roomVideoPath;
+                            roomImage.onload = () => {
+                                roomCanvas.width = roomImage.naturalWidth;
+                                roomCanvas.height = roomImage.naturalHeight;
+                                staticCanvas.width = roomCanvas.width;
+                                staticCanvas.height = roomCanvas.height;
+
+                                document.getElementById('start-overlay').classList.add('hidden');
+                                requestAnimationFrame(processFrame);
+                            };
+                        } else {
+                            roomVideo.src = config.roomVideoPath;
+                            roomVideo.onloadedmetadata = () => {
+                                roomCanvas.width = roomVideo.videoWidth;
+                                roomCanvas.height = roomVideo.videoHeight;
+                                staticCanvas.width = roomCanvas.width;
+                                staticCanvas.height = roomCanvas.height;
+                            };
+                            roomVideo.play().catch(e => console.log("Auto-play blocked"));
+                            document.getElementById('start-overlay').classList.add('hidden');
+                            requestAnimationFrame(processFrame);
+                        }
+                    }
+
+                    // 1.5 Restore Visual Effects
+                    if (config.effects) {
+                        if (config.effects.crt) state.effects.crt = { ...state.effects.crt, ...config.effects.crt };
+                        if (config.effects.tv) state.effects.tv = { ...state.effects.tv, ...config.effects.tv };
+
+                        // Update CRT UI
+                        const crtInt = state.effects.crt.intensity;
+                        const crtSlider = document.getElementById('crt-intensity');
+                        if (crtSlider) crtSlider.value = crtInt;
+                        const crtVal = document.getElementById('val-crt-int');
+                        if (crtVal) crtVal.innerText = Math.round(crtInt * 100) + '%';
+
+                        if (typeof updateCRTUI === 'function') updateCRTUI();
+
+                        // Update TV FX UI
+                        const tv = state.effects.tv;
+                        ['bright', 'contrast', 'sat', 'hue', 'blur', 'sepia'].forEach(k => {
+                            const el = document.getElementById('fx-' + k);
+                            if (el) {
+                                const prop = k === 'sat' ? 'saturation' : (k === 'bright' ? 'brightness' : k);
+                                el.value = tv[prop] || 0;
+                            }
+                        });
+
+                        if (typeof applyTVEffects === 'function') applyTVEffects();
+                    }
+
+                    // 2. Restore Method & Transform
+                    state.method = config.method;
+                    state.tvTransform = config.tvTransform || state.tvTransform;
+                    state.chroma = config.chroma || state.chroma;
+                    state.manualSelection = config.manualSelection || state.manualSelection;
+
+                    const methodBtn = document.querySelector(`input[name="place-method"][value="${config.method}"]`);
+                    if (methodBtn) {
+                        methodBtn.checked = true;
+                        if (typeof updateMethodUI === 'function') updateMethodUI();
+                    }
+
+                    document.getElementById('chroma-threshold').value = state.chroma.threshold;
+                    if (typeof updateChromaVal === 'function') updateChromaVal('val-chroma-thresh', state.chroma.threshold);
+
+                    document.getElementById('chroma-softness').value = state.chroma.softness;
+                    if (typeof updateChromaVal === 'function') updateChromaVal('val-chroma-soft', state.chroma.softness);
+
+                    document.getElementById('tv-scale').value = state.tvTransform.scale;
+                    document.getElementById('tv-rotate').value = state.tvTransform.rotate;
+                    document.getElementById('tv-x').value = state.tvTransform.x;
+                    document.getElementById('tv-y').value = state.tvTransform.y;
+                    if (typeof updateTVTransform === 'function') updateTVTransform();
+
+                    // 3. Restore Audio
+                    if (config.audio) {
+                        if (config.audio.tvVol !== undefined && typeof updateVolume === 'function') updateVolume('tv', parseFloat(config.audio.tvVol), 'load');
+
+                        const restoreAudio = (type, data) => {
+                            if (!state.audio[type]) return;
+                            Object.assign(state.audio[type], data);
+                            const volSlider = document.getElementById('vol-' + type);
+                            if (volSlider && typeof updateVolume === 'function') {
+                                volSlider.value = data.vol * 100;
+                                updateVolume(type, data.vol, 'load');
+                            }
+                            if (data.active) {
+                                const btn = document.getElementById('btn-' + type);
+                                if (btn) btn.classList.add('active');
+                            }
+                        };
+                        restoreAudio('birds', config.audio.birds);
+                        restoreAudio('car', config.audio.car);
+                        restoreAudio('mower', config.audio.mower);
+                        restoreAudio('house', config.audio.house);
+                    }
+
+                    // 4. Restore TV Source
+                    if (config.tvSource) {
+                        state.tvSource = config.tvSource;
+                        // Trigger tab clicks
+                        const tabId = config.tvSource === 'file' ? 'tab-file' : 'tab-url';
+                        const tabToClick = document.getElementById(tabId);
+                        if (tabToClick) tabToClick.click();
+
+                        if (config.tvSource === 'youtube' && config.ytState && config.ytState.url) {
+                            const ytInput = document.getElementById('yt-url');
+                            if (ytInput) ytInput.value = config.ytState.url;
+                            if (typeof loadYoutube === 'function') loadYoutube(config.ytState.url, config.ytState.time || 0, config.ytState.index || 0);
+                        }
+                    }
+
+                })
+                .catch(err => {
+                    console.log("No default config found or error loading, using default.", err);
+                    const overlay = document.getElementById('start-overlay');
+                    if (overlay) overlay.classList.remove('hidden');
+                });
+        }
+
+        // Start init
+        loadConfig();
+    </script>
+</body>
+
+</html>
