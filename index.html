@@ -362,6 +362,8 @@
     </style>
     <!-- Load YouTube API -->
     <script src="https://www.youtube.com/iframe_api"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <!-- EmulatorJS will be loaded dynamically when a game is selected -->
 </head>
 
@@ -685,6 +687,8 @@
                 class="flex-1 text-xs font-bold py-1 bg-gray-800 hover:bg-gray-700 text-gray-400">GAMES</button>
             <button id="tab-web"
                 class="flex-1 text-xs font-bold py-1 bg-gray-800 hover:bg-gray-700 text-gray-400">WEB</button>
+            <button id="tab-party"
+                class="flex-1 text-xs font-bold py-1 bg-gray-800 hover:bg-gray-700 text-gray-400">PARTY</button>
         </div>
 
         <!-- TV Source Controls (Moved & Refactored) -->
@@ -768,6 +772,39 @@
             </div>
             <div class="text-xs text-gray-500 text-center px-2">
                 Note: Some modern sites may refuse to load in an iframe (X-Frame-Options).
+            </div>
+        </div>
+
+        <!-- PARTY TAB -->
+        <div id="panel-party" class="hidden">
+            <div class="mb-4 text-center">
+                <div class="text-xs text-gray-400 mb-2">HOST A PARTY</div>
+                <button id="btn-host-party"
+                    class="w-full bg-green-900 hover:bg-green-800 text-white text-sm font-bold py-2 rounded border border-green-700 mb-2">
+                    CREATE PARTY
+                </button>
+                <div id="host-code-display"
+                    class="hidden bg-black border border-green-500 text-green-500 font-mono text-xl p-2 rounded mb-2 select-all">
+                    ------
+                </div>
+                <div id="host-status" class="text-[10px] text-gray-500">Share code with friends</div>
+            </div>
+
+            <div class="border-t border-gray-700 my-4"></div>
+
+            <div class="mb-4 text-center">
+                <div class="text-xs text-gray-400 mb-2">JOIN A PARTY</div>
+                <input type="text" id="join-code-input" placeholder="ENTER CODE" maxlength="6"
+                    class="w-full bg-gray-900 border border-gray-700 text-sm p-2 text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 rounded mb-2 text-center uppercase font-mono">
+                <button id="btn-join-party"
+                    class="w-full bg-blue-900 hover:bg-blue-800 text-white text-sm font-bold py-2 rounded border border-blue-700">
+                    JOIN PARTY
+                </button>
+                <div id="join-status" class="text-[10px] text-gray-500 mt-2"></div>
+            </div>
+
+            <div class="text-[10px] text-gray-600 text-center px-2">
+                Syncs video, background, and config. Host controls playback.
             </div>
         </div>
 
@@ -1045,6 +1082,8 @@
         const selectionBox = document.getElementById('selection-box');
         const ytContainer = document.getElementById('yt-player-container');
         const emulatorContainer = document.getElementById('emulator-container');
+        const seekSlider = document.getElementById('video-seek');
+        const timeDisplay = document.getElementById('video-time');
 
         // --- Layout & resizing ---
         function setRatio(ratio) {
@@ -1059,6 +1098,8 @@
             }
             resizeCanvases();
         }
+
+
 
         // Set default high-res canvas (prevents low-res static on startup)
         roomCanvas.width = 1920;
@@ -1092,6 +1133,7 @@
 
         // --- Remote Logic ---
         const remotePanel = document.getElementById('remote-panel');
+
         const hideRemoteBtn = document.getElementById('hide-remote-btn');
         const showRemoteBtn = document.getElementById('show-remote-btn');
 
@@ -1223,10 +1265,200 @@
             });
         });
 
-        // --- Seek Bar Logic ---
-        const seekSlider = document.getElementById('video-seek');
-        const timeDisplay = document.getElementById('video-time');
-        let isSeeking = false;
+        // --- Watch Party Logic ---
+        let socket = null;
+        let peer = null;
+        let partyRoomId = null;
+        let isPartyHost = false;
+        let partyPeers = {}; // { socketId: call }
+
+        const initSocket = () => {
+            if (socket) return;
+            socket = io();
+
+            socket.on('connect', () => {
+                console.log('Socket Connected:', socket.id);
+            });
+
+            socket.on('user-joined', (userId) => {
+                console.log('User joined party:', userId);
+                // Host initiates peer call if streaming local video
+                if (isPartyHost && state.tvSource === 'file') {
+                    callPeer(userId);
+                }
+            });
+
+            socket.on('sync-state', (remoteState) => {
+                console.log('Received State Sync', remoteState);
+                applyRemoteState(remoteState);
+            });
+
+            socket.on('peer-id', (data) => {
+                console.log("Got Peer ID:", data);
+                peerMap[data.from] = data.peerId;
+                if (isPartyHost) callPeer(data.from);
+            });
+        };
+
+        const generateCode = () => {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let result = '';
+            for (let i = 0; i < 6; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        };
+
+        document.getElementById('btn-host-party').addEventListener('click', () => {
+            initSocket();
+            partyRoomId = generateCode();
+            isPartyHost = true;
+
+            socket.emit('join-room', partyRoomId, true);
+
+            document.getElementById('host-code-display').innerText = partyRoomId;
+            document.getElementById('host-code-display').classList.remove('hidden');
+            document.getElementById('host-status').innerText = "Hosting... Waiting for viewers.";
+
+            // Init PeerJS for Host
+            initPeer(true);
+
+            // Start Sync Loop
+            setInterval(syncHostState, 1000);
+        });
+
+        document.getElementById('btn-join-party').addEventListener('click', () => {
+            const code = document.getElementById('join-code-input').value.toUpperCase();
+            if (code.length !== 6) {
+                alert("Invalid Code");
+                return;
+            }
+            initSocket();
+            partyRoomId = code;
+            isPartyHost = false;
+
+            socket.emit('join-room', partyRoomId, false);
+            document.getElementById('join-status').innerText = "Joined Party: " + code;
+
+            // Init PeerJS for Viewer
+            initPeer(false);
+        });
+
+        const initPeer = (isHost) => {
+            peer = new Peer(undefined, {
+                debug: 2
+            });
+
+            peer.on('open', (id) => {
+                console.log('My Peer ID:', id);
+                // Send peer ID to room via socket?
+                // Actually relying on socket.io signaling mostly, but PeerJS needs IDs.
+                // We can map SocketID <-> PeerID if needed, or just broadcast PeerID to room
+                if (socket) socket.emit('peer-id', { roomId: partyRoomId, peerId: id });
+            });
+
+            peer.on('call', (call) => {
+                // Viewer receiving call from Host
+                call.answer(); // Answer without stream? Or with placeholder?
+                call.on('stream', (remoteStream) => {
+                    console.log('Received Video Stream');
+                    // Set TV source to this stream
+                    state.tvSource = 'stream';
+                    tvVideo.srcObject = remoteStream;
+                    tvVideo.play();
+                    // override UI
+                    tvVideo.classList.remove('hidden');
+                    ytContainer.classList.add('hidden');
+                });
+            });
+        };
+
+        const callPeer = (socketId) => {
+            const peerId = peerMap[socketId];
+            if (partyPeers[socketId] && partyPeers[socketId].open) return;
+
+            if (peerId && peer) {
+                console.log("Calling Peer:", peerId);
+                if (state.tvSource === 'file') {
+                    try {
+                        const stream = tvVideo.captureStream ? tvVideo.captureStream() : (tvVideo.mozCaptureStream ? tvVideo.mozCaptureStream() : null);
+                        if (stream) {
+                            const call = peer.call(peerId, stream);
+                            partyPeers[socketId] = call;
+                            call.on('close', () => delete partyPeers[socketId]);
+                            call.on('error', () => delete partyPeers[socketId]);
+                        }
+                    } catch (e) {
+                        console.error("Stream capture failed", e);
+                    }
+                }
+            }
+        };
+
+        // Listen for Peer IDs
+        const peerMap = {}; // socketId -> peerId
+
+        // Add to initSocket:
+        // socket.on('peer-id', (data) => {
+        //     peerMap[data.from] = data.peerId;
+        //     if(isPartyHost && state.tvSource === 'file') {
+        //          // If we have a stream, call them
+        //          const stream = tvVideo.captureStream();
+        //          const call = peer.call(data.peerId, stream);
+        //     }
+        // });
+
+        const syncHostState = () => {
+            if (!isPartyHost || !socket) return;
+
+            // Gather State
+            const syncData = {
+                tvSource: state.tvSource,
+                file: (state.tvSource === 'url') ? document.getElementById('yt-url').value : null,
+                // For YouTube, need ID and Time
+                ytId: (state.ytPlayer && state.ytPlayer.getVideoData) ? state.ytPlayer.getVideoData().video_id : null,
+                ytTime: (state.ytPlayer && state.ytPlayer.getCurrentTime) ? state.ytPlayer.getCurrentTime() : 0,
+                ytState: (state.ytPlayer && state.ytPlayer.getPlayerState) ? state.ytPlayer.getPlayerState() : -1,
+
+                // Configs
+                background: document.getElementById('bg-video').src,
+                ads: state.ads,
+                audio: state.audio,
+                // etc...
+            };
+
+            socket.emit('sync-state', { roomId: partyRoomId, state: syncData });
+        };
+
+        const applyRemoteState = (remote) => {
+            if (isPartyHost) return; // Host ignores
+
+            // Apply Background
+            const bgVideo = document.getElementById('bg-video');
+            if (remote.background && !bgVideo.src.includes(remote.background)) { // crude check
+                // only if remote is a full URL or path we can resolve. 
+                // If it's a blob url (local file), we can't sync it easily without stream.
+                // Assuming server path for backgrounds.
+                if (remote.background.startsWith('http') || remote.background.startsWith('blob') === false) {
+                    bgVideo.src = remote.background;
+                }
+            }
+
+            // Apply TV Source
+            if (remote.tvSource === 'youtube') {
+                if (state.tvSource !== 'youtube' || !state.ytPlayer) {
+                    loadYoutubeVideo(remote.ytId);
+                } else {
+                    // Sync Time & State
+                    const diff = Math.abs(state.ytPlayer.getCurrentTime() - remote.ytTime);
+                    if (diff > 2) state.ytPlayer.seekTo(remote.ytTime);
+
+                    if (remote.ytState === 1 && state.ytPlayer.getPlayerState() !== 1) state.ytPlayer.playVideo();
+                    if (remote.ytState === 2 && state.ytPlayer.getPlayerState() !== 2) state.ytPlayer.pauseVideo();
+                }
+            }
+            // For 'file', we rely on PeerJS stream established elsewhere.
+        };
 
         const formatTime = (seconds) => {
             if (!seconds || isNaN(seconds) || seconds < 0) return "00:00";
@@ -1410,7 +1642,8 @@
         });
 
         // --- Tab Switching Logic ---
-        const tabs = ['file', 'url', 'channels', 'games', 'web'];
+        // --- Tab Switching Logic ---
+        const tabs = ['file', 'url', 'channels', 'games', 'web', 'party'];
         tabs.forEach(t => {
             document.getElementById(`tab-${t}`).addEventListener('click', () => {
                 // Update visual tabs
@@ -1466,6 +1699,8 @@
                     if (state.emulator) {
                         try { if (state.emulator.pause) state.emulator.pause(); } catch (e) { }
                     }
+                } else if (t === 'party') {
+                    // Do nothing to source, allowing overlay interaction
                 } else {
                     // Both URL and Channels use YouTube source type
                     state.tvSource = 'youtube';

@@ -106,7 +106,84 @@ app.get('/api/channels', (req, res) => {
     }
 });
 
-app.listen(PORT, async () => {
+const http = require('http');
+const server = http.createServer(app);
+const { Server } = require("socket.io");
+const io = new Server(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
+});
+
+// --- Socket.IO / Watch Party Logic ---
+const rooms = {}; // { roomId: { host: socketId, viewers: [socketId], state: {} } }
+
+io.on('connection', (socket) => {
+    // Join a party
+    socket.on('join-room', (roomId, isHost) => {
+        socket.join(roomId);
+
+        if (!rooms[roomId]) {
+            rooms[roomId] = { host: null, viewers: [], state: {} };
+        }
+
+        if (isHost) {
+            rooms[roomId].host = socket.id;
+            console.log(`🏠 Room ${roomId} created by host ${socket.id}`);
+        } else {
+            rooms[roomId].viewers.push(socket.id);
+            console.log(`👤 User ${socket.id} joined room ${roomId}`);
+
+            // If room has state, send it to new user
+            if (rooms[roomId].state) {
+                socket.emit('sync-state', rooms[roomId].state);
+            }
+
+            // Notify host a new user joined (for PeerJS calls if needed)
+            if (rooms[roomId].host) {
+                io.to(rooms[roomId].host).emit('user-joined', socket.id);
+            }
+        }
+    });
+
+    // Sync State (Host -> Room)
+    socket.on('sync-state', (data) => {
+        const { roomId, state } = data;
+        if (rooms[roomId] && rooms[roomId].host === socket.id) {
+            rooms[roomId].state = state; // Cache state
+            socket.to(roomId).emit('sync-state', state); // Broadcast to viewers
+        }
+    });
+
+    // Signaling for WebRTC (PeerJS handling is mostly client-side but simple signaling helps)
+    socket.on('signal', (data) => {
+        io.to(data.to).emit('signal', { from: socket.id, signal: data.signal });
+    });
+
+    // Peer ID exchange
+    socket.on('peer-id', (data) => {
+        const { roomId, peerId } = data;
+        socket.to(roomId).emit('peer-id', { from: socket.id, peerId });
+    });
+
+    socket.on('disconnect', () => {
+        console.log(`🔌 Client disconnected: ${socket.id}`);
+        // Cleanup rooms if host leaves? Or keep it?
+        // simple cleanup:
+        for (const roomId in rooms) {
+            if (rooms[roomId].host === socket.id) {
+                // Host left
+                io.to(roomId).emit('host-left');
+                delete rooms[roomId];
+            } else {
+                rooms[roomId].viewers = rooms[roomId].viewers.filter(id => id !== socket.id);
+            }
+        }
+    });
+});
+
+server.listen(PORT, async () => {
     const url = `http://localhost:${PORT}/index.html`;
 
     console.log(`\n📺 Retro Room Simulator is running!`);
