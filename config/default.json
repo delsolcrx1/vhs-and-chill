@@ -6,7 +6,7 @@
   "ytState": {
     "url": "https://www.youtube.com/watch?v=m23AX-QwG1M&list=PLLhOnau-tupRvo6QnYop-0JsHAhCCDhm0",
     "index": 0,
-    "time": 28.603430020980834
+    "time": 55.679904965667724
   },
   "effects": {
     "crt": {
@@ -15,9 +15,9 @@
       "scope": "tv"
     },
     "tv": {
-      "brightness": 1,
+      "brightness": 0.9,
       "contrast": 1,
-      "saturation": 1,
+      "saturation": 0.95,
       "hue": 0,
       "blur": 0,
       "sepia": 0
@@ -61,5 +61,25 @@
       "vol": 1
     },
     "tvVol": "0.74"
-  }
+  },
+  "menuState": {
+    "sidebarHidden": false,
+    "remoteVisible": true
+  },
+  "adState": {
+    "enabled": true,
+    "adsPerBreak": 2,
+    "playCounts": {
+      "m23AX-QwG1M": 1,
+      "oUsygWvMV7A": 1,
+      "x_JegDwLbP0": 1,
+      "6d8nWbo9e6k": 1,
+      "zpJx2uSw7YE": 1,
+      "u455OHbDiu0": 1,
+      "9V7u_arYk-w": 1,
+      "VxJeYY-VI-8": 1
+    }
+  },
+  "lockedManual": true,
+  "lastWebUrl": "https://www.spacejam.com/1996/"
 }

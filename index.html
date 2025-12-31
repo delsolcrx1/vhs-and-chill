@@ -174,7 +174,7 @@
         }
 
         .remote-label {
-            font-size: 10px;
+            font-size: 12px;
             color: #666;
             text-align: center;
             margin-bottom: 5px;
@@ -296,6 +296,69 @@
             transform: none !important;
             /* reset any internal scaling that might offset */
         }
+
+        /* Dial-up Overlay */
+        .dialup-overlay {
+            background-color: #c0c0c0;
+            border: 2px outset #fff;
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.5);
+            font-family: 'MS Sans Serif', 'Arial', sans-serif;
+            color: #000;
+        }
+
+        .dialup-header {
+            background: linear-gradient(90deg, #000080, #1084d0);
+            color: white;
+            padding: 2px 4px;
+            font-weight: bold;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Retro Browser */
+        .browser-toolbar {
+            background: #d4d0c8;
+            border-bottom: 2px solid #808080;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-family: sans-serif;
+        }
+
+        .browser-btn {
+            border: 1px outset #fff;
+            background: #d4d0c8;
+            padding: 2px 8px;
+            font-size: 12px;
+            cursor: pointer;
+            color: black;
+        }
+
+        .browser-btn:active {
+            border: 1px inset #fff;
+        }
+
+        .browser-address {
+            background: white;
+            border: 1px inset #808080;
+            padding: 2px;
+            font-family: monospace;
+            font-size: 12px;
+            flex-grow: 1;
+            color: black;
+        }
+
+        /* Scaled Iframe for Zoom Out Effect */
+        #browser-frame {
+            width: 200%;
+            height: 200%;
+            transform: scale(0.5);
+            transform-origin: 0 0;
+            border: none;
+        }
     </style>
     <!-- Load YouTube API -->
     <script src="https://www.youtube.com/iframe_api"></script>
@@ -305,12 +368,13 @@
 <body class="h-screen w-screen flex relative">
 
     <!-- Sidebar Controls -->
-    <div id="sidebar" class="control-panel absolute z-50 h-full w-80 flex flex-col p-4 overflow-y-auto left-0 top-0">
+    <div id="sidebar"
+        class="control-panel absolute z-50 h-full w-[480px] flex flex-col p-4 overflow-y-auto left-0 top-0">
         <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-2">
-            <h1 class="text-2xl text-green-500 tracking-wider">RETRO SIM v1.5</h1>
+            <h1 class="text-3xl text-green-500 tracking-wider">RETRO SIM v1.5</h1>
             <div class="flex gap-2">
                 <button id="save-config-btn"
-                    class="text-xs bg-blue-900 px-2 py-1 rounded text-white hover:bg-blue-700 border border-blue-800">SAVE</button>
+                    class="text-sm bg-blue-900 px-2 py-1 rounded text-white hover:bg-blue-700 border border-blue-800">SAVE</button>
                 <button id="hide-menu-btn" class="text-gray-400 hover:text-white">
                     <i class="fas fa-chevron-left"></i>
                 </button>
@@ -322,32 +386,33 @@
             <h2 class="text-lg text-green-400 mb-2 border-b border-gray-800 pb-1">DISPLAY FORMAT</h2>
             <div class="flex gap-2">
                 <button onclick="setRatio('16:9')"
-                    class="flex-1 bg-gray-800 py-2 hover:bg-gray-700 border border-gray-600 text-sm">16:9 (TV)</button>
+                    class="flex-1 bg-gray-800 py-2 hover:bg-gray-700 border border-gray-600 text-base">16:9
+                    (TV)</button>
                 <button onclick="setRatio('9:16')"
-                    class="flex-1 bg-gray-800 py-2 hover:bg-gray-700 border border-gray-600 text-sm">9:16
+                    class="flex-1 bg-gray-800 py-2 hover:bg-gray-700 border border-gray-600 text-base">9:16
                     (MOBILE)</button>
             </div>
         </div>
 
         <!-- Video Uploads -->
         <div class="mb-6">
-            <h2 class="text-lg text-green-400 mb-2 border-b border-gray-800 pb-1">VIDEO SOURCES</h2>
+            <h2 class="text-xl text-green-400 mb-2 border-b border-gray-800 pb-1">VIDEO SOURCES</h2>
 
             <div class="mb-4">
-                <label class="block text-gray-400 text-sm mb-1">1. Room (Background)</label>
+                <label class="block text-gray-400 text-base mb-1">1. Room (Background)</label>
                 <input type="file" id="room-upload" accept="video/*,image/*"
-                    class="w-full text-sm text-gray-500 file:mr-2 file:py-1 file:px-2 file:border-0 file:text-sm file:font-semibold file:bg-green-900 file:text-green-100 hover:file:bg-green-700" />
+                    class="w-full text-base text-gray-500 file:mr-2 file:py-1 file:px-2 file:border-0 file:text-sm file:font-semibold file:bg-green-900 file:text-green-100 hover:file:bg-green-700" />
             </div>
 
             <!-- Method Selection -->
             <div class="mt-4 border-t border-gray-800 pt-2">
-                <label class="block text-green-400 text-sm mb-2">PLACEMENT METHOD</label>
+                <label class="block text-green-400 text-base mb-2">PLACEMENT METHOD</label>
                 <div class="flex flex-col gap-2">
-                    <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
+                    <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
                         <input type="radio" name="place-method" value="chroma" checked class="accent-green-500">
                         <span>Chroma Key (Green Screen)</span>
                     </label>
-                    <label class="flex items-center gap-2 text-xs text-gray-300 cursor-pointer">
+                    <label class="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
                         <input type="radio" name="place-method" value="manual" class="accent-green-500">
                         <span>Manual Selection (Draw Box)</span>
                     </label>
@@ -356,47 +421,47 @@
 
             <!-- Chroma Controls -->
             <div id="chroma-controls" class="mt-3 bg-gray-900 p-2 rounded border border-gray-800">
-                <div class="text-[10px] text-green-500 uppercase tracking-widest mb-1">Green Screen Settings</div>
+                <div class="text-xs text-green-500 uppercase tracking-widest mb-1">Green Screen Settings</div>
                 <div class="flex justify-between mt-1">
-                    <div class="text-xs text-gray-500">Threshold</div>
-                    <div class="text-xs text-gray-300" id="val-chroma-thresh">90</div>
+                    <div class="text-sm text-gray-500">Threshold</div>
+                    <div class="text-sm text-gray-300" id="val-chroma-thresh">90</div>
                 </div>
                 <input type="range" id="chroma-threshold" min="0" max="200" value="90" class="range-slider mt-1">
 
                 <div class="flex justify-between mt-2">
-                    <div class="text-xs text-gray-500">Softness</div>
-                    <div class="text-xs text-gray-300" id="val-chroma-soft">20</div>
+                    <div class="text-sm text-gray-500">Softness</div>
+                    <div class="text-sm text-gray-300" id="val-chroma-soft">20</div>
                 </div>
                 <input type="range" id="chroma-softness" min="0" max="100" value="20" class="range-slider mt-1">
             </div>
 
             <!-- Manual Transform Controls -->
             <div id="transform-controls" class="mt-3 bg-gray-900 p-2 rounded border border-gray-800">
-                <div class="text-[10px] text-blue-400 uppercase tracking-widest mb-1 flex justify-between items-center">
+                <div class="text-xs text-blue-400 uppercase tracking-widest mb-1 flex justify-between items-center">
                     <span>Transform</span>
                     <div class="flex items-center gap-2">
                         <label class="flex items-center gap-1 cursor-pointer select-none">
                             <input type="checkbox" id="lock-manual" class="accent-red-500 w-3 h-3">
-                            <span class="text-[8px] text-gray-500 uppercase">LOCK</span>
+                            <span class="text-[10px] text-gray-500 uppercase">LOCK</span>
                         </label>
-                        <span id="manual-hint" class="hidden text-red-400 animate-pulse text-[8px]">DRAG!</span>
+                        <span id="manual-hint" class="hidden text-red-400 animate-pulse text-[10px]">DRAG!</span>
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-2">
                     <div>
-                        <div class="text-xs text-gray-500">Scale</div>
+                        <div class="text-sm text-gray-500">Scale</div>
                         <input type="range" id="tv-scale" min="0.1" max="2" step="0.05" value="1" class="range-slider">
                     </div>
                     <div>
-                        <div class="text-xs text-gray-500">Rotation</div>
+                        <div class="text-sm text-gray-500">Rotation</div>
                         <input type="range" id="tv-rotate" min="-45" max="45" value="0" class="range-slider">
                     </div>
                     <div>
-                        <div class="text-xs text-gray-500">Pos X</div>
+                        <div class="text-sm text-gray-500">Pos X</div>
                         <input type="range" id="tv-x" min="-100" max="100" value="0" class="range-slider">
                     </div>
                     <div>
-                        <div class="text-xs text-gray-500">Pos Y</div>
+                        <div class="text-sm text-gray-500">Pos Y</div>
                         <input type="range" id="tv-y" min="-100" max="100" value="0" class="range-slider">
                     </div>
                 </div>
@@ -406,18 +471,18 @@
 
         <!-- Advertising Settings -->
         <div class="mb-6">
-            <h2 class="text-lg text-green-400 mb-2 border-b border-gray-800 pb-1">SIMULATION (ADS)</h2>
+            <h2 class="text-xl text-green-400 mb-2 border-b border-gray-800 pb-1">SIMULATION (ADS)</h2>
             <div class="flex justify-between items-center bg-gray-900 p-2 rounded border border-gray-800">
-                <span class="text-sm text-gray-300">Ads per Break</span>
+                <span class="text-base text-gray-300">Ads per Break</span>
                 <div class="flex items-center gap-2">
                     <button id="btn-ads-toggle"
                         class="toggle-btn w-3 h-3 rounded-full border border-gray-600 bg-gray-800 mr-1"
                         title="Enable/Disable Ads via Config"></button>
                     <input type="number" id="ads-count" min="0" max="10" value="2"
-                        class="bg-gray-800 border border-gray-700 text-white text-xs w-12 p-1 text-center rounded focus:outline-none focus:border-green-500">
+                        class="bg-gray-800 border border-gray-700 text-white text-sm w-12 p-1 text-center rounded focus:outline-none focus:border-green-500">
                 </div>
             </div>
-            <div class="flex justify-between items-center text-[10px] text-gray-500 mt-1 px-1">
+            <div class="flex justify-between items-center text-xs text-gray-500 mt-1 px-1">
                 <span>Configured Playlists: <span id="ads-playlist-count">0</span></span>
                 <button onclick="if(confirm('Clear all ad play counts?')) resetAdCounts()"
                     class="text-xs text-red-500 hover:text-red-400 hover:underline">Reset Counts</button>
@@ -426,24 +491,24 @@
 
         <!-- Visual Effects -->
         <div class="mb-6">
-            <h2 class="text-lg text-green-400 mb-2 border-b border-gray-800 pb-1">VISUAL EFFECTS</h2>
+            <h2 class="text-xl text-green-400 mb-2 border-b border-gray-800 pb-1">VISUAL EFFECTS</h2>
 
             <!-- CRT Effects -->
             <div class="mb-4 p-2 bg-gray-900 rounded border border-gray-800">
                 <div class="flex justify-between items-center mb-2">
-                    <span class="text-sm text-gray-300">CRT Overlay</span>
+                    <span class="text-base text-gray-300">CRT Overlay</span>
                     <button id="btn-crt"
                         class="toggle-btn active w-4 h-4 rounded-full border border-gray-600 bg-gray-800"></button>
                 </div>
                 <div>
                     <div class="flex justify-between mb-1">
-                        <label class="text-[10px] text-gray-500">Scanline Intensity</label>
-                        <span id="val-crt-int" class="text-[10px] text-gray-400">30%</span>
+                        <label class="text-xs text-gray-500">Scanline Intensity</label>
+                        <span id="val-crt-int" class="text-xs text-gray-400">30%</span>
                     </div>
                     <input type="range" id="crt-intensity" min="0" max="1" step="0.05" value="0.3"
                         class="range-slider mb-2">
 
-                    <div class="flex gap-2 text-[10px] text-gray-400">
+                    <div class="flex gap-2 text-xs text-gray-400">
                         <label
                             class="flex items-center gap-1 bg-black px-2 py-1 rounded border border-gray-700 flex-1 justify-center cursor-pointer">
                             <input type="radio" name="crt-scope" value="screen" checked class="accent-green-500"> Screen
@@ -458,52 +523,52 @@
 
             <!-- TV Post-Processing -->
             <div class="mb-4 p-2 bg-gray-900 rounded border border-gray-800">
-                <div class="text-[10px] text-blue-400 uppercase tracking-widest mb-2">TV Post-Processing</div>
+                <div class="text-xs text-blue-400 uppercase tracking-widest mb-2">TV Post-Processing</div>
 
                 <div class="grid grid-cols-2 gap-2">
                     <div>
-                        <div class="flex justify-between"><label class="text-[10px] text-gray-500">Brightness</label>
+                        <div class="flex justify-between"><label class="text-xs text-gray-500">Brightness</label>
                         </div>
                         <input type="range" id="fx-bright" min="0" max="2" step="0.05" value="1" class="range-slider">
                     </div>
                     <div>
-                        <div class="flex justify-between"><label class="text-[10px] text-gray-500">Contrast</label>
+                        <div class="flex justify-between"><label class="text-xs text-gray-500">Contrast</label>
                         </div>
                         <input type="range" id="fx-contrast" min="0" max="2" step="0.05" value="1" class="range-slider">
                     </div>
                     <div>
-                        <div class="flex justify-between"><label class="text-[10px] text-gray-500">Saturation</label>
+                        <div class="flex justify-between"><label class="text-xs text-gray-500">Saturation</label>
                         </div>
                         <input type="range" id="fx-sat" min="0" max="3" step="0.05" value="1" class="range-slider">
                     </div>
                     <div>
-                        <div class="flex justify-between"><label class="text-[10px] text-gray-500">Hue</label></div>
+                        <div class="flex justify-between"><label class="text-xs text-gray-500">Hue</label></div>
                         <input type="range" id="fx-hue" min="0" max="360" step="10" value="0" class="range-slider">
                     </div>
                     <div>
-                        <div class="flex justify-between"><label class="text-[10px] text-gray-500">Blur</label></div>
+                        <div class="flex justify-between"><label class="text-xs text-gray-500">Blur</label></div>
                         <input type="range" id="fx-blur" min="0" max="10" step="0.5" value="0" class="range-slider">
                     </div>
                     <div>
-                        <div class="flex justify-between"><label class="text-[10px] text-gray-500">Sepia</label></div>
+                        <div class="flex justify-between"><label class="text-xs text-gray-500">Sepia</label></div>
                         <input type="range" id="fx-sepia" min="0" max="1" step="0.05" value="0" class="range-slider">
                     </div>
                 </div>
                 <button id="reset-fx"
-                    class="mt-2 w-full text-[10px] bg-gray-800 hover:bg-gray-700 py-1 rounded text-gray-400">RESET VIDEO
+                    class="mt-2 w-full text-xs bg-gray-800 hover:bg-gray-700 py-1 rounded text-gray-400">RESET VIDEO
                     FX</button>
             </div>
         </div>
 
         <!-- Audio Mixer -->
         <div class="mb-6 flex-1">
-            <h2 class="text-lg text-green-400 mb-2 border-b border-gray-800 pb-1">AUDIO MIXER <button id="audio-init"
-                    class="text-xs bg-red-900 px-2 rounded ml-2">START AUDIO</button></h2>
+            <h2 class="text-xl text-green-400 mb-2 border-b border-gray-800 pb-1">AUDIO MIXER <button id="audio-init"
+                    class="text-sm bg-red-900 px-2 rounded ml-2">START AUDIO</button></h2>
 
             <!-- TV Audio -->
             <div class="mb-4">
                 <div class="flex justify-between items-center mb-1">
-                    <span class="text-sm text-blue-300">TV Volume</span>
+                    <span class="text-base text-blue-300">TV Volume</span>
                 </div>
                 <div class="flex gap-2 items-center">
                     <input type="range" id="vol-tv" min="0" max="1" step="0.01" value="1"
@@ -515,7 +580,7 @@
             <!-- Birds -->
             <div class="mb-4 p-2 bg-gray-900 rounded border border-gray-800">
                 <div class="flex justify-between items-center mb-2">
-                    <span class="text-sm">Birds</span>
+                    <span class="text-base">Birds</span>
                     <button id="btn-birds"
                         class="toggle-btn w-4 h-4 rounded-full border border-gray-600 bg-gray-800"></button>
                 </div>
@@ -525,24 +590,24 @@
                 </div>
                 <div id="synth-birds" class="grid grid-cols-2 gap-2 mb-2 synth-controls">
                     <div>
-                        <label class="text-[10px] text-gray-500 block">Freq</label>
+                        <label class="text-xs text-gray-500 block">Freq</label>
                         <input type="range" id="freq-birds" class="range-slider">
                     </div>
                     <div>
-                        <label class="text-[10px] text-gray-500 block">Intensity</label>
+                        <label class="text-xs text-gray-500 block">Intensity</label>
                         <input type="range" id="int-birds" class="range-slider">
                     </div>
                 </div>
 
 
                 <input type="file" id="file-birds" accept="audio/*"
-                    class="custom-file-input w-full text-xs text-gray-600">
+                    class="custom-file-input w-full text-sm text-gray-600">
             </div>
 
             <!-- Traffic -->
             <div class="mb-4 p-2 bg-gray-900 rounded border border-gray-800">
                 <div class="flex justify-between items-center mb-2">
-                    <span class="text-sm">Traffic</span>
+                    <span class="text-base">Traffic</span>
                     <button id="btn-car"
                         class="toggle-btn w-4 h-4 rounded-full border border-gray-600 bg-gray-800"></button>
                 </div>
@@ -552,18 +617,18 @@
                 </div>
                 <div id="synth-car" class="grid grid-cols-2 gap-2 mb-2 synth-controls">
                     <div>
-                        <label class="text-[10px] text-gray-500 block">Frequency</label>
+                        <label class="text-xs text-gray-500 block">Frequency</label>
                         <input type="range" id="freq-car" class="range-slider">
                     </div>
                 </div>
                 <input type="file" id="file-car" accept="audio/*"
-                    class="custom-file-input w-full text-xs text-gray-600">
+                    class="custom-file-input w-full text-sm text-gray-600">
             </div>
 
             <!-- Lawnmower -->
             <div class="mb-4 p-2 bg-gray-900 rounded border border-gray-800">
                 <div class="flex justify-between items-center mb-2">
-                    <span class="text-sm">Lawnmower</span>
+                    <span class="text-base">Lawnmower</span>
                     <button id="btn-mower"
                         class="toggle-btn w-4 h-4 rounded-full border border-gray-600 bg-gray-800"></button>
                 </div>
@@ -573,18 +638,18 @@
                 </div>
                 <div id="synth-mower" class="grid grid-cols-2 gap-2 mb-2 synth-controls">
                     <div>
-                        <label class="text-[10px] text-gray-500 block">Distance</label>
+                        <label class="text-xs text-gray-500 block">Distance</label>
                         <input type="range" id="dist-mower" class="range-slider">
                     </div>
                 </div>
                 <input type="file" id="file-mower" accept="audio/*"
-                    class="custom-file-input w-full text-xs text-gray-600">
+                    class="custom-file-input w-full text-sm text-gray-600">
             </div>
 
             <!-- Talking -->
             <div class="mb-4 p-2 bg-gray-900 rounded border border-gray-800">
                 <div class="flex justify-between items-center mb-2">
-                    <span class="text-sm">Talking</span>
+                    <span class="text-base">Talking</span>
                     <button id="btn-house"
                         class="toggle-btn w-4 h-4 rounded-full border border-gray-600 bg-gray-800"></button>
                 </div>
@@ -593,16 +658,16 @@
                     <input type="number" id="vol-house-num" min="0" max="100" value="50" class="num-input">
                 </div>
                 <input type="file" id="file-house" accept="audio/*"
-                    class="custom-file-input w-full text-xs text-gray-600">
+                    class="custom-file-input w-full text-sm text-gray-600">
             </div>
         </div>
     </div>
 
     <!-- Remote Control Panel -->
     <div id="remote-panel"
-        class="control-panel absolute z-50 h-full w-48 flex flex-col p-4 overflow-y-auto right-0 top-0">
+        class="control-panel absolute z-50 h-full w-72 flex flex-col p-4 overflow-y-auto right-0 top-0">
         <div class="flex justify-between items-center mb-6 border-b border-gray-700 pb-2">
-            <h1 class="text-xl text-green-500 tracking-wider">REMOTE</h1>
+            <h1 class="text-2xl text-green-500 tracking-wider">REMOTE</h1>
             <button id="hide-remote-btn" class="text-gray-400 hover:text-white">
                 <i class="fas fa-chevron-right"></i>
             </button>
@@ -611,13 +676,15 @@
         <!-- Source Tabs -->
         <div class="flex gap-1 mb-4 border-b border-gray-700 pb-1">
             <button id="tab-file"
-                class="flex-1 text-[10px] font-bold py-1 bg-gray-800 hover:bg-gray-700 text-gray-400 active-tab">FILE</button>
+                class="flex-1 text-xs font-bold py-1 bg-gray-800 hover:bg-gray-700 text-gray-400 active-tab">FILE</button>
             <button id="tab-url"
-                class="flex-1 text-[10px] font-bold py-1 bg-gray-800 hover:bg-gray-700 text-gray-400">URL</button>
+                class="flex-1 text-xs font-bold py-1 bg-gray-800 hover:bg-gray-700 text-gray-400">URL</button>
             <button id="tab-channels"
-                class="flex-1 text-[10px] font-bold py-1 bg-gray-800 hover:bg-gray-700 text-gray-400">CHANNELS</button>
+                class="flex-1 text-xs font-bold py-1 bg-gray-800 hover:bg-gray-700 text-gray-400">CHANNELS</button>
             <button id="tab-games"
-                class="flex-1 text-[10px] font-bold py-1 bg-gray-800 hover:bg-gray-700 text-gray-400">GAMES</button>
+                class="flex-1 text-xs font-bold py-1 bg-gray-800 hover:bg-gray-700 text-gray-400">GAMES</button>
+            <button id="tab-web"
+                class="flex-1 text-xs font-bold py-1 bg-gray-800 hover:bg-gray-700 text-gray-400">WEB</button>
         </div>
 
         <!-- TV Source Controls (Moved & Refactored) -->
@@ -627,22 +694,22 @@
                 <div class="mb-2 text-center">
                     <input type="file" id="tv-upload" accept="video/*" class="hidden" />
                     <label for="tv-upload"
-                        class="cursor-pointer block w-full py-2 bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold rounded border border-blue-700">
+                        class="cursor-pointer block w-full py-2 bg-blue-900 hover:bg-blue-800 text-white text-sm font-bold rounded border border-blue-700">
                         <i class="fas fa-file-video mr-2"></i> SELECT VIDEO FILE
                     </label>
                 </div>
-                <div class="text-[10px] text-gray-500 text-center">Supports MP4, WebM, MKV</div>
+                <div class="text-xs text-gray-500 text-center">Supports MP4, WebM, MKV</div>
             </div>
 
             <!-- URL TAB -->
             <div id="panel-url" class="hidden">
                 <div class="flex gap-1 mb-2">
                     <input type="text" id="yt-url" placeholder="Paste URL..."
-                        class="w-full bg-gray-900 border border-gray-700 text-xs p-2 text-white placeholder-gray-600 focus:outline-none focus:border-red-500 rounded">
+                        class="w-full bg-gray-900 border border-gray-700 text-sm p-2 text-white placeholder-gray-600 focus:outline-none focus:border-red-500 rounded">
                     <button id="yt-load-btn"
-                        class="bg-red-900 text-white text-xs px-2 hover:bg-red-700 border border-red-800 rounded">GO</button>
+                        class="bg-red-900 text-white text-sm px-2 hover:bg-red-700 border border-red-800 rounded">GO</button>
                 </div>
-                <div class="text-[10px] text-gray-500 text-center">YouTube Videos & Playlists</div>
+                <div class="text-xs text-gray-500 text-center">YouTube Videos & Playlists</div>
             </div>
 
             <!-- CHANNELS TAB -->
@@ -655,9 +722,9 @@
             <!-- GAMES TAB -->
             <div id="panel-games" class="hidden">
                 <div class="mb-3">
-                    <label class="block text-gray-400 text-xs mb-2">SELECT SYSTEM</label>
+                    <label class="block text-gray-400 text-sm mb-2">SELECT SYSTEM</label>
                     <select id="game-system"
-                        class="w-full bg-gray-900 border border-gray-700 text-xs p-2 text-white focus:outline-none focus:border-green-500 rounded">
+                        class="w-full bg-gray-900 border border-gray-700 text-sm p-2 text-white focus:outline-none focus:border-green-500 rounded">
                         <option value="">-- Choose System --</option>
                         <option value="nes">Nintendo Entertainment System (NES)</option>
                         <option value="segaMD">Sega Genesis / Mega Drive</option>
@@ -666,18 +733,18 @@
                 <div class="mb-2">
                     <input type="file" id="rom-upload" accept=".nes,.smd,.md,.gen,.bin" class="hidden" />
                     <label for="rom-upload"
-                        class="cursor-pointer block w-full py-2 bg-purple-900 hover:bg-purple-800 text-white text-xs font-bold rounded border border-purple-700 text-center"
+                        class="cursor-pointer block w-full py-2 bg-purple-900 hover:bg-purple-800 text-white text-sm font-bold rounded border border-purple-700 text-center"
                         id="rom-upload-label">
                         <i class="fas fa-gamepad mr-2"></i> SELECT ROM FILE
                     </label>
                 </div>
-                <div class="text-[10px] text-gray-500 text-center mb-2" id="rom-filename">No ROM loaded</div>
+                <div class="text-xs text-gray-500 text-center mb-2" id="rom-filename">No ROM loaded</div>
                 <button id="game-load-btn"
-                    class="w-full bg-green-900 text-white text-xs px-3 py-2 hover:bg-green-700 border border-green-800 rounded font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                    class="w-full bg-green-900 text-white text-sm px-3 py-2 hover:bg-green-700 border border-green-800 rounded font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled>
                     <i class="fas fa-play mr-2"></i>LOAD GAME
                 </button>
-                <div class="mt-3 text-[9px] text-gray-600 leading-relaxed">
+                <div class="mt-3 text-xs text-gray-600 leading-relaxed">
                     <div class="mb-1"><strong class="text-gray-500">Controls:</strong></div>
                     <div>Arrow Keys = D-Pad</div>
                     <div>Z = A/Button 1</div>
@@ -685,6 +752,22 @@
                     <div>Enter = Start</div>
                     <div>Shift = Select</div>
                 </div>
+            </div>
+        </div>
+
+        <!-- WEB TAB -->
+        <div id="panel-web" class="hidden">
+            <div class="mb-3">
+                <label class="block text-gray-400 text-sm mb-2">DIAL UP INTERNET</label>
+                <input type="text" id="web-url" value="https://www.spacejam.com/1996/" placeholder="http://..."
+                    class="w-full bg-gray-900 border border-gray-700 text-sm p-2 text-white placeholder-gray-600 focus:outline-none focus:border-blue-500 rounded mb-2">
+                <button id="btn-dialup"
+                    class="w-full bg-blue-900 hover:bg-blue-800 text-white text-sm font-bold py-2 rounded border border-blue-700">
+                    <i class="fas fa-network-wired mr-2"></i> CONNECT
+                </button>
+            </div>
+            <div class="text-xs text-gray-500 text-center px-2">
+                Note: Some modern sites may refuse to load in an iframe (X-Frame-Options).
             </div>
         </div>
 
@@ -702,7 +785,7 @@
             <!-- Video Fit Mode -->
             <div class="flex justify-center mb-2">
                 <select id="video-fit"
-                    class="bg-black text-[10px] text-gray-400 border border-gray-700 p-1 w-full rounded text-center">
+                    class="bg-black text-xs text-gray-400 border border-gray-700 p-1 w-full rounded text-center">
                     <option value="cover">ZOOM (COVER)</option>
                     <option value="contain">FIT (CONTAIN)</option>
                     <option value="fill">STRETCH (FILL)</option>
@@ -716,6 +799,11 @@
                     <i class="fas fa-pause"></i>
                 </button>
             </div>
+            <!-- Seek Bar -->
+            <div class="mb-2 px-1">
+                <input type="range" id="video-seek" min="0" max="100" value="0" step="0.1" class="range-slider mb-1">
+                <div id="video-time" class="text-[10px] text-gray-500 text-center font-mono">00:00 / 00:00</div>
+            </div>
             <div class="flex gap-2 justify-center mb-2">
                 <button id="remote-prev" class="remote-btn w-10 h-10" title="Prev Video">
                     <i class="fas fa-step-backward"></i>
@@ -725,7 +813,7 @@
                 </button>
             </div>
             <div class="flex justify-center">
-                <button id="remote-eject" class="remote-btn w-full py-1 text-xs">
+                <button id="remote-eject" class="remote-btn w-full py-1 text-sm">
                     <i class="fas fa-eject mr-2"></i> EJECT / UNLOAD
                 </button>
             </div>
@@ -784,10 +872,62 @@
                         <div id="yt-player" class="w-full h-full"></div>
                     </div>
 
-                    <!-- Emulator Container -->
                     <div id="emulator-container" class="absolute inset-0 w-full h-full z-10 hidden"
                         style="pointer-events: auto;">
                         <div id="game" class="w-full h-full" style="pointer-events: auto;"></div>
+                    </div>
+
+                    <!-- Retro Browser Container -->
+                    <div id="browser-container"
+                        class="absolute inset-0 w-full h-full z-10 hidden flex flex-col bg-gray-200"
+                        style="pointer-events: auto;">
+                        <div class="browser-toolbar">
+                            <button class="browser-btn"
+                                onclick="document.getElementById('browser-frame').contentWindow.history.back()"><i
+                                    class="fas fa-arrow-left"></i></button>
+                            <button class="browser-btn"
+                                onclick="document.getElementById('browser-frame').contentWindow.history.forward()"><i
+                                    class="fas fa-arrow-right"></i></button>
+                            <button class="browser-btn"
+                                onclick="document.getElementById('browser-frame').src = document.getElementById('web-url').value"><i
+                                    class="fas fa-redo"></i></button>
+                            <div class="browser-address" id="browser-address-bar">http://...</div>
+                        </div>
+                        <div class="flex-1 overflow-hidden relative w-full h-full">
+                            <iframe id="browser-frame" src="about:blank"
+                                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+                        </div>
+                    </div>
+
+                    <!-- Dial-up Overlay -->
+                    <div id="dialup-overlay"
+                        class="absolute inset-0 z-50 flex items-center justify-center hidden pointer-events-none">
+                        <div class="dialup-overlay w-3/4 max-w-sm p-1 pointer-events-auto">
+                            <div class="dialup-header">
+                                <span>Sign On</span>
+                                <span
+                                    class="bg-gray-300 text-black px-1 text-xs font-bold shadow-sm cursor-pointer">X</span>
+                            </div>
+                            <div class="bg-gray-200 p-4 flex flex-col items-center">
+                                <div class="flex gap-4 mb-4">
+                                    <div
+                                        class="w-16 h-16 bg-white border border-gray-500 flex items-center justify-center">
+                                        <i class="fas fa-laptop-house text-2xl text-gray-600"></i>
+                                    </div>
+                                    <div class="w-16 h-16 border border-gray-500 flex items-center justify-center"><i
+                                            class="fas fa-exchange-alt text-xl text-gray-400"></i></div>
+                                    <div
+                                        class="w-16 h-16 bg-white border border-gray-500 flex items-center justify-center">
+                                        <i class="fas fa-globe text-2xl text-blue-600 animate-pulse"></i>
+                                    </div>
+                                </div>
+                                <div id="dialup-status" class="text-sm font-bold text-black mb-2">Dialing...</div>
+                                <div class="w-full bg-white h-4 border border-gray-600 p-0.5">
+                                    <div id="dialup-bar" class="h-full bg-blue-800 w-0 transition-all duration-300">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- TV CRT Overlay -->
@@ -1083,6 +1223,76 @@
             });
         });
 
+        // --- Seek Bar Logic ---
+        const seekSlider = document.getElementById('video-seek');
+        const timeDisplay = document.getElementById('video-time');
+        let isSeeking = false;
+
+        const formatTime = (seconds) => {
+            if (!seconds || isNaN(seconds) || seconds < 0) return "00:00";
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60);
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        };
+
+        const updateSeekBar = () => {
+            if (isSeeking) return; // Don't update while dragging
+
+            let currentTime = 0;
+            let duration = 0;
+
+            if (state.tvSource === 'file' && tvVideo) {
+                currentTime = tvVideo.currentTime || 0;
+                duration = tvVideo.duration || 0;
+            } else if (state.tvSource === 'youtube' && state.ytPlayer && state.ytPlayer.getCurrentTime) {
+                currentTime = state.ytPlayer.getCurrentTime() || 0;
+                duration = state.ytPlayer.getDuration() || 0;
+            }
+
+            if (duration > 0) {
+                seekSlider.value = (currentTime / duration) * 100;
+                timeDisplay.innerText = `${formatTime(currentTime)} / ${formatTime(duration)}`;
+            } else {
+                seekSlider.value = 0;
+                timeDisplay.innerText = "00:00 / 00:00";
+            }
+        };
+
+        // Update loop for smooth seek bar (runs independently of game loop)
+        setInterval(updateSeekBar, 500);
+
+        // Slider Interaction
+        seekSlider.addEventListener('mousedown', () => isSeeking = true);
+        seekSlider.addEventListener('touchstart', () => isSeeking = true);
+
+        const handleSeek = (e) => {
+            const percent = parseFloat(e.target.value);
+            let duration = 0;
+
+            if (state.tvSource === 'file' && tvVideo) {
+                duration = tvVideo.duration || 0;
+                if (duration > 0) tvVideo.currentTime = (percent / 100) * duration;
+            } else if (state.tvSource === 'youtube' && state.ytPlayer && state.ytPlayer.seekTo) {
+                duration = state.ytPlayer.getDuration() || 0;
+                if (duration > 0) state.ytPlayer.seekTo((percent / 100) * duration, true);
+            }
+
+            // Optimistic update of text while dragging
+            if (duration > 0) {
+                const seekTime = (percent / 100) * duration;
+                timeDisplay.innerText = `${formatTime(seekTime)} / ${formatTime(duration)}`;
+            }
+        };
+
+        seekSlider.addEventListener('input', handleSeek); // Real-time scrubbing
+        seekSlider.addEventListener('change', (e) => { // Commit
+            isSeeking = false;
+            handleSeek(e);
+        });
+        seekSlider.addEventListener('mouseup', () => isSeeking = false);
+        seekSlider.addEventListener('touchend', () => isSeeking = false);
+
+
         // --- Placement Method Logic ---
         const methodRadios = document.getElementsByName('place-method');
         const chromaControls = document.getElementById('chroma-controls');
@@ -1200,7 +1410,7 @@
         });
 
         // --- Tab Switching Logic ---
-        const tabs = ['file', 'url', 'channels', 'games'];
+        const tabs = ['file', 'url', 'channels', 'games', 'web'];
         tabs.forEach(t => {
             document.getElementById(`tab-${t}`).addEventListener('click', () => {
                 // Update visual tabs
@@ -1226,6 +1436,7 @@
                     tvVideo.classList.remove('hidden');
                     ytContainer.classList.add('hidden');
                     emulatorContainer.classList.add('hidden');
+                    browserContainer.classList.add('hidden');
                     if (tvVideo.src) {
                         tvVideo.play().catch(() => { });
                     }
@@ -1241,12 +1452,26 @@
                     tvVideo.classList.add('hidden');
                     ytContainer.classList.add('hidden');
                     emulatorContainer.classList.remove('hidden');
+                    browserContainer.classList.add('hidden');
                     if (tvVideo.paused === false) tvVideo.pause();
                     if (state.ytPlayer && state.ytPlayer.pauseVideo) state.ytPlayer.pauseVideo();
+                } else if (t === 'web') {
+                    state.tvSource = 'web';
+                    tvVideo.classList.add('hidden');
+                    ytContainer.classList.add('hidden');
+                    emulatorContainer.classList.add('hidden');
+                    browserContainer.classList.remove('hidden');
+                    if (tvVideo.paused === false) tvVideo.pause();
+                    if (state.ytPlayer && state.ytPlayer.pauseVideo) state.ytPlayer.pauseVideo();
+                    if (state.emulator) {
+                        try { if (state.emulator.pause) state.emulator.pause(); } catch (e) { }
+                    }
                 } else {
                     // Both URL and Channels use YouTube source type
                     state.tvSource = 'youtube';
                     tvVideo.classList.add('hidden');
+                    ytContainer.classList.add('hidden');
+                    browserContainer.classList.add('hidden');
                     ytContainer.classList.remove('hidden');
                     emulatorContainer.classList.add('hidden');
                     if (tvVideo.paused === false) tvVideo.pause();
@@ -1258,6 +1483,52 @@
                 }
             });
         });
+
+        // --- WEB / DIALUP LOGIC ---
+        const browserContainer = document.getElementById('browser-container');
+        const dialupOverlay = document.getElementById('dialup-overlay');
+        const dialupStatus = document.getElementById('dialup-status');
+        const dialupBar = document.getElementById('dialup-bar');
+        const btnDialup = document.getElementById('btn-dialup');
+        const browserFrame = document.getElementById('browser-frame');
+        const browserAddress = document.getElementById('browser-address-bar');
+
+        btnDialup.addEventListener('click', () => {
+            const url = document.getElementById('web-url').value;
+            startWebSession(url);
+        });
+
+        function startWebSession(url) {
+            // 1. Reset UI
+            browserContainer.classList.remove('hidden');
+            browserFrame.classList.add('hidden'); // Hide frame until loaded
+            dialupOverlay.classList.remove('hidden');
+            dialupStatus.innerText = "Initializing Modem...";
+            dialupBar.style.width = '0%';
+
+            // 2. Play Sound
+            const audio = new Audio('sounds/dialup.mp3');
+            audio.volume = 0.5;
+
+            // Events
+            setTimeout(() => { dialupStatus.innerText = "Dialing 555-0199..."; dialupBar.style.width = '10%'; }, 1000);
+            setTimeout(() => { dialupStatus.innerText = "Handshaking..."; dialupBar.style.width = '40%'; }, 4000);
+            setTimeout(() => { dialupStatus.innerText = "Verifying Username..."; dialupBar.style.width = '60%'; }, 12000);
+            setTimeout(() => { dialupStatus.innerText = "Connected!"; dialupBar.style.width = '100%'; }, 26000); // end of clip approx
+
+            audio.play().catch(e => console.error("Audio play failed", e));
+
+            audio.onended = () => {
+                // Done
+                dialupOverlay.classList.add('hidden');
+                browserFrame.classList.remove('hidden');
+                browserFrame.src = url;
+                browserAddress.innerText = url;
+            };
+
+            // Fallback if audio fails or is too long/short
+            // audio.duration might be NaN initially, used onended as primary
+        }
 
         // --- Channels Logic ---
         function fetchChannels() {
@@ -2250,7 +2521,19 @@
                         mower: { active: state.audio.mower.active, vol: state.audio.mower.vol, dist: state.audio.mower.dist },
                         house: { active: state.audio.house.active, vol: state.audio.house.vol },
                         tvVol: (document.getElementById('vol-tv') ? document.getElementById('vol-tv').value : 1)
-                    }
+                    },
+                    // New Saved States
+                    menuState: {
+                        sidebarHidden: document.getElementById('sidebar').classList.contains('hidden-panel'),
+                        remoteVisible: document.getElementById('remote-panel').classList.contains('visible-panel')
+                    },
+                    adState: {
+                        enabled: state.ads.enabled,
+                        adsPerBreak: state.ads.adsPerBreak,
+                        playCounts: state.ads.videoPlayCounts
+                    },
+                    lockedManual: state.lockedManual || false,
+                    lastWebUrl: document.getElementById('web-url') ? document.getElementById('web-url').value : ''
                 };
 
                 fetch('/api/config/default', {
@@ -2842,6 +3125,18 @@
                     state.tvTransform = config.tvTransform || state.tvTransform;
                     state.chroma = config.chroma || state.chroma;
                     state.manualSelection = config.manualSelection || state.manualSelection;
+                    state.lockedManual = config.lockedManual || false;
+
+                    // Restore Manual Lock
+                    const lockBox = document.getElementById('lock-manual');
+                    if (lockBox) {
+                        lockBox.checked = state.lockedManual;
+                        // Apply UI side effects of lock
+                        if (state.lockedManual) {
+                            document.getElementById('aspect-container').classList.remove('cursor-crosshair');
+                            document.getElementById('manual-hint').classList.add('hidden');
+                        }
+                    }
 
                     const methodBtn = document.querySelector(`input[name="place-method"][value="${config.method}"]`);
                     if (methodBtn) {
@@ -2882,13 +3177,53 @@
                         restoreAudio('car', config.audio.car);
                         restoreAudio('mower', config.audio.mower);
                         restoreAudio('house', config.audio.house);
+
                     }
 
-                    // 4. Restore TV Source
+                    // 4. Restore Menu States
+                    if (config.menuState) {
+                        const sidebar = document.getElementById('sidebar');
+                        const remote = document.getElementById('remote-panel');
+                        if (config.menuState.sidebarHidden) sidebar.classList.add('hidden-panel');
+                        else sidebar.classList.remove('hidden-panel');
+
+                        // Icon state sync for sidebar
+                        const hideMenuBtn = document.getElementById('show-menu-btn');
+                        if (config.menuState.sidebarHidden) hideMenuBtn.classList.remove('hidden');
+                        else hideMenuBtn.classList.add('hidden');
+
+                        if (config.menuState.remoteVisible) {
+                            remote.classList.add('visible-panel');
+                            document.getElementById('show-remote-btn').classList.add('hidden');
+                        } else {
+                            remote.classList.remove('visible-panel');
+                            document.getElementById('show-remote-btn').classList.remove('hidden');
+                        }
+                    }
+
+                    // 5. Restore Ad State
+                    if (config.adState) {
+                        if (config.adState.enabled !== undefined) state.ads.enabled = config.adState.enabled;
+                        if (config.adState.adsPerBreak !== undefined) state.ads.adsPerBreak = config.adState.adsPerBreak;
+                        if (config.adState.playCounts) state.ads.videoPlayCounts = config.adState.playCounts;
+                        if (typeof updateAdUI === 'function') updateAdUI();
+                    }
+
+                    // 6. Restore Web State
+                    if (config.lastWebUrl && document.getElementById('web-url')) {
+                        document.getElementById('web-url').value = config.lastWebUrl;
+                    }
+
+                    // 7. Restore TV Source (Expanded)
                     if (config.tvSource) {
                         state.tvSource = config.tvSource;
                         // Trigger tab clicks
-                        const tabId = config.tvSource === 'file' ? 'tab-file' : 'tab-url';
+                        let tabId = 'tab-url'; // default
+                        if (config.tvSource === 'file') tabId = 'tab-file';
+                        else if (config.tvSource === 'game') tabId = 'tab-games';
+                        else if (config.tvSource === 'web') tabId = 'tab-web';
+                        else if (config.tvSource === 'channels') tabId = 'tab-channels';
+
                         const tabToClick = document.getElementById(tabId);
                         if (tabToClick) tabToClick.click();
 
