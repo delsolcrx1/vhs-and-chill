@@ -1,5 +1,9 @@
 # Retro Room Simulator
 
+[![GitHub](https://img.shields.io/badge/GitHub-Profile-blue)](https://github.com/delsolcrx1)
+
+![image](./public/img/vhs-and-chill.png)
+
 A web-based retro environment simulator. Load your own background, place a virtual TV screen, and mix ambient audio.
 
 ## Features
